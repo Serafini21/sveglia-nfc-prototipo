@@ -33,8 +33,13 @@ struct StopSenzaTagIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         let n = UserDefaults.standard.integer(forKey: "stopSenzaTag") + 1
         UserDefaults.standard.set(n, forKey: "stopSenzaTag")
-        let restanti = ((try? AlarmManager.shared.alarms) ?? []).count
-        Log.add("STOP SENZA TAG sulla sveglia n. \(indice) (totale stop senza tag: \(n), sveglie ancora programmate: \(restanti))")
+        // Se nessuno ferma una sveglia, AlarmKit la lascia "in corso" sotto la successiva (si accumulano).
+        // Le fermiamo tutte: così dopo uno Stop c'è silenzio fino alla prossima sveglia programmata.
+        let manager = AlarmManager.shared
+        let sovrapposte = ((try? manager.alarms) ?? []).filter { $0.state == .alerting && $0.id.uuidString != alarmID }
+        for a in sovrapposte { try? manager.stop(id: a.id) }
+        let restanti = ((try? manager.alarms) ?? []).count
+        Log.add("STOP SENZA TAG sulla sveglia n. \(indice) (totale stop senza tag: \(n), fermate anche \(sovrapposte.count) sovrapposte, sveglie ancora programmate: \(restanti))")
         return .result()
     }
 }

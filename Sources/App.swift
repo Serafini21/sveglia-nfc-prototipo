@@ -70,7 +70,7 @@ struct SvegliaView: View {
 
                 Section("Spegnimento") {
                     TextField("Nome tag", text: $nomeTag)
-                    Button("Simula tag") { Catena.spegniConTag(nomeTag: nomeTag); aggiorna() }
+                    Button("Simula tag") { _ = Catena.spegniConTag(nomeTag: nomeTag); aggiorna() }
                     Button("Cancella tutte le sveglie", role: .destructive) {
                         Catena.cancellaTutto(motivo: "pulsante di sicurezza"); aggiorna()
                     }

@@ -19,5 +19,21 @@ Prima dei test con la catena, per non aspettare 30 minuti, tocca **Catena breve:
 | 11 | Sveglia non fermata (sovrapposizione) | Catena breve, **non toccare niente** | Annota: la sveglia 1 suona finché arriva la 2? Si sovrappongono? Quanto dura una singola sveglia se nessuno la ferma? | |
 | 12 | Limite di sveglie | Durata 30 min, intervallo 30 s → "Imposta sveglia" | Nel log: "Catena programmata: 61 sveglie…" oppure "LIMITE AlarmKit raggiunto dopo N sveglie" (in quel caso mandami N) | |
 
+## Giro 2 (dopo i risultati del 17 novembre)
+
+Cosa abbiamo scoperto nel giro 1:
+- Se una sveglia non viene fermata, AlarmKit **non** la spegne: quando arriva la successiva, la vecchia resta "in corso" sotto la nuova, e le sveglie si accumulano. Per questo, premendo Stop, ripartiva "subito" una sveglia vecchia (nel log: stop n.6 e poi n.2). Gli "Errore cancellazione Code=0" erano innocui: compariva un errore per ogni sveglia accumulata.
+- Ora, quando premi Stop, l'app ferma anche le sveglie accumulate sotto. Dopo uno Stop dovrebbe esserci silenzio fino alla prossima sveglia programmata, cioè al massimo 30 s.
+- La catena da 61 sveglie è accettata e non c'è nessun limite.
+- La carta d'identità elettronica quasi certamente presenta all'iPhone un identificativo **diverso a ogni lettura**, per privacy. Per questo l'automazione NFC non riconosce mai "lo stesso tag". Con un vero tag NTAG il problema non c'è.
+
+| # | Test | Come | Risultato atteso | Risultato |
+|---|---|---|---|---|
+| 13 | Stop con sveglie accumulate | Catena breve, lascia suonare senza toccare per circa 1,5 min (si accumulano 3-4 sveglie), poi premi **Stop** una volta | Silenzio fino alla prossima sveglia programmata. Nel log: "fermate anche N sovrapposte" con N ≥ 1 | |
+| 14 | Tasto laterale (accensione) | Quando suona premi il tasto laterale | Come Stop: nel log "STOP SENZA TAG" e silenzio fino alla prossima | |
+| 15 | **Buco del volume** | Quando suona premi un tasto **volume** e poi **non toccare niente per 5 minuti** | Annota: suona di nuovo qualcosa in quei 5 minuti? Se resta tutto muto, il volume è un modo per imbrogliare | |
+| 16 | Tag vero | Come i test 8a e 8b, con il tag NTAG | La sveglia si ferma. Nel log: "SPEGNIMENTO COL TAG" con il nome del tag e "sveglie in corso: N" | |
+| 17 | Suono lungo | Il test 10 non è stato fatto | Vedi il test 10 | |
+
 Note libere:
 

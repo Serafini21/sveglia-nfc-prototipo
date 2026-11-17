@@ -107,8 +107,10 @@ enum Catena {
     static func cancellaTutto(motivo: String) -> Int {
         let tutte = (try? manager.alarms) ?? []
         for a in tutte {
-            if a.state == .alerting { try? manager.stop(id: a.id) }
-            do { try manager.cancel(id: a.id) } catch { Log.add("Errore cancellazione \(a.id): \(error)") }
+            // stop() su una sveglia singola che suona la rimuove già: un cancel() dopo darebbe errore Code=0
+            do {
+                if a.state == .alerting { try manager.stop(id: a.id) } else { try manager.cancel(id: a.id) }
+            } catch { Log.add("Errore cancellazione \(a.id): \(error)") }
         }
         if !tutte.isEmpty { Log.add("Cancellate \(tutte.count) sveglie (\(motivo))") }
         return tutte.count
@@ -116,8 +118,8 @@ enum Catena {
 
     /// Logica unica usata sia dall'App Intent sia dal pulsante "Simula tag".
     static func spegniConTag(nomeTag: String?) -> Int {
-        let suonava = ((try? manager.alarms) ?? []).contains { $0.state == .alerting }
-        Log.add("SPEGNIMENTO COL TAG \"\(nomeTag ?? "-")\" (sveglia in corso: \(suonava ? "si" : "no"))")
+        let inCorso = ((try? manager.alarms) ?? []).filter { $0.state == .alerting }.count
+        Log.add("SPEGNIMENTO COL TAG \"\(nomeTag ?? "-")\" (sveglie in corso: \(inCorso))")
         return cancellaTutto(motivo: "tag")
     }
 
