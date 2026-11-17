@@ -1,0 +1,48 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Seleziona l'Xcode 26 più recente
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          echo "Uso $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Genera suoni e progetto
+        run: |
+          python3 scripts/genera_suoni.py Sounds
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Compila (senza firma)
+        run: |
+          set -o pipefail
+          xcodebuild -project SvegliaNFC.xcodeproj -scheme SvegliaNFC \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -n 200
+
+      - name: Crea .ipa
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/SvegliaNFC.app Payload/
+          ls Payload/SvegliaNFC.app
+          test -d Payload/SvegliaNFC.app/Metadata.appintents || echo "::warning::Metadata App Intents mancante: l'azione potrebbe non comparire in Comandi Rapidi"
+          zip -qry SvegliaNFC.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SvegliaNFC-ipa
+          path: SvegliaNFC.ipa

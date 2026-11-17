@@ -1,0 +1,6 @@
+Sounds/
+Generated/
+*.xcodeproj
+build/
+Payload/
+*.ipa
