@@ -18,7 +18,7 @@ struct ImpostazioniView: View {
 
     private var testoNotifiche: String {
         guard let notifiche else { return "…" }
-        switch notifiche {
+        return switch notifiche {
         case .authorized, .provisional, .ephemeral: "attive"
         case .denied: "negate (attivale in Impostazioni › Alba)"
         case .notDetermined: "non ancora richieste"

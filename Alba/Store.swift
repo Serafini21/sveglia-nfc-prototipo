@@ -46,8 +46,11 @@ actor Store {
     /// (alba-illeggibile-<data>.json) invece di sovrascriverlo, così i dati non vanno persi.
     private static func carica(_ url: URL) -> DatiAlba {
         guard let byte = try? Data(contentsOf: url) else {
+            // salvato subito: il codice segreto generato ora non deve cambiare al prossimo avvio
+            let nuovi = DatiAlba()
+            try? codificatore.encode(nuovi).write(to: url, options: [.atomic])
             EventLog.scrivi("Dati: nessun file, primo avvio")
-            return DatiAlba()
+            return nuovi
         }
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
