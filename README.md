@@ -80,6 +80,28 @@ Dopo ogni prova apri la scheda **Log** dell'app e usa **Condividi log** per mand
 - **Suoni**: WAV PCM 22 kHz. Normale e punizione durano 25 s, il test lungo 3 min. Apple **non documenta** la durata massima né se un suono breve viene ripetuto in loop: lo dice il test "suono lungo" (vedi TEST.md). Il suono si sceglie **per singola sveglia**, quindi cambiarlo lungo la catena funziona per costruzione. Dentro una stessa sveglia non si può cambiare.
 - **Niente estensioni**: niente widget né Live Activity. Apple le richiede solo per le sveglie con countdown, che qui non usiamo.
 
+## Risultati dei test sul dispositivo (iPhone 14 Pro, iOS 26.6.2, 17-18 nov 2026)
+
+| Ipotesi | Esito |
+|---|---|
+| Installazione da Windows con Apple ID gratuito | ✅ Sideloadly funziona; nessuna capability necessaria |
+| Sveglia ad app chiusa, telefono bloccato, in silenzioso | ✅ |
+| Limite di sveglie | ✅ 61 sveglie accettate senza errori (limite reale non raggiunto) |
+| Stop dal pulsante o dal tasto laterale | ✅ lo `stopIntent` parte anche ad app chiusa; la sveglia successiva della catena suona regolarmente |
+| Sveglie non fermate | ⚠️ **si accumulano**: la nuova copre la vecchia, che resta "in corso". Risolto: lo Stop ferma anche quelle accumulate |
+| Tasti volume | ❌ **zittiscono senza fermare**: la sveglia resta attiva, le successive diventano "in corso" ma senza suono (log: 7 in corso insieme). È un modo per imbrogliare che AlarmKit non permette di intercettare |
+| App Intent da Comandi Rapidi / automazione NFC | ✅ ferma tutto, senza aprire l'app |
+| Tag NFC a telefono bloccato | ❌ l'automazione parte **solo a telefono sbloccato**: è un limite di iOS, non dell'app |
+| Carta d'identità come tag | ❌ non è utilizzabile (probabilmente cambia identificativo a ogni lettura) |
+| Durata suono | ✅ il file da 3 min suona intero, poi **ricomincia in loop**; la sveglia non si spegne da sola (lasciata suonare oltre 4 min) |
+| Volume crescente dentro il file | ⚠️ non percepito: da indagare (iOS potrebbe normalizzare il volume) |
+| Cambio suono lungo la catena | ✅ ogni sveglia ha il suo suono: la sirena "punizione" parte dalla 5ª |
+
+Conseguenze per l'app finale:
+- **Sveglia progressiva di 15 min**: un file lungo funziona, perché viene ripetuto in loop finché non lo fermi. Se però il volume crescente dentro il file non si sente, l'alternativa è una catena di sveglie con file sempre più forti: ogni nuova sveglia copre la precedente con il suo suono.
+- **Buco del volume**: non si può chiudere con AlarmKit. Si può però *rilevarlo*: all'apertura successiva l'app trova sveglie rimaste "in corso" e lo registra, per esempio nelle statistiche.
+- **Tag col telefono bloccato**: prima va sbloccato (basta Face ID, *da verificare se senza scorrere verso l'alto*).
+
 ## Rigenerare il progetto (solo se hai un Mac, facoltativo)
 ```bash
 python3 scripts/genera_suoni.py Sounds && xcodegen generate && open SvegliaNFC.xcodeproj
