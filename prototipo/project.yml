@@ -1,0 +1,27 @@
+name: SvegliaNFC
+options:
+  deploymentTarget:
+    iOS: "26.0"
+targets:
+  SvegliaNFC:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Sounds # generata da scripts/genera_suoni.py prima di xcodegen
+        buildPhase: resources
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: Sveglia NFC
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSAlarmKitUsageDescription: "Serve per far suonare la sveglia all'orario scelto, anche con il telefono bloccato o in silenzioso."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.svegliatag.prototipo # cambia qui il Bundle ID
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO

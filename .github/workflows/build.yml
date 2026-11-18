@@ -3,6 +3,7 @@ name: Build IPA
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 jobs:
@@ -19,6 +20,13 @@ jobs:
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
 
+      - name: Test delle regole (logica pura)
+        run: |
+          mkdir -p build-test
+          xcrun --sdk macosx swiftc -swift-version 5 -o build-test/test_regole \
+            Alba/Modello.swift Alba/Regole.swift Tests/main.swift
+          ./build-test/test_regole
+
       - name: Genera suoni e progetto
         run: |
           python3 scripts/genera_suoni.py Sounds
@@ -28,21 +36,23 @@ jobs:
       - name: Compila (senza firma)
         run: |
           set -o pipefail
-          xcodebuild -project SvegliaNFC.xcodeproj -scheme SvegliaNFC \
+          xcodebuild -project Alba.xcodeproj -scheme Alba \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build | tail -n 200
+            build | grep -E "error:|warning:|BUILD" | grep -v "appintentsmetadataprocessor" | tail -n 150
 
       - name: Crea .ipa
         run: |
           mkdir Payload
-          cp -R build/Build/Products/Release-iphoneos/SvegliaNFC.app Payload/
-          ls Payload/SvegliaNFC.app
-          test -d Payload/SvegliaNFC.app/Metadata.appintents || echo "::warning::Metadata App Intents mancante: l'azione potrebbe non comparire in Comandi Rapidi"
-          zip -qry SvegliaNFC.ipa Payload
+          cp -R build/Build/Products/Release-iphoneos/Alba.app Payload/
+          ls Payload/Alba.app
+          test -d Payload/Alba.app/Metadata.appintents || echo "::warning::Metadata App Intents mancante: l'azione potrebbe non comparire in Comandi Rapidi"
+          zip -qry Alba.ipa Payload
+          ls -lh Alba.ipa
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SvegliaNFC-ipa
-          path: SvegliaNFC.ipa
+          name: Alba-ipa
+          path: Alba.ipa

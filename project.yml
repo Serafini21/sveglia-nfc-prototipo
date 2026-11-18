@@ -1,27 +1,31 @@
-name: SvegliaNFC
+name: Alba
 options:
   deploymentTarget:
-    iOS: "26.0"
+    iOS: "26.1"
+  developmentLanguage: it # frasi di Siri e testi base in italiano
 targets:
-  SvegliaNFC:
+  Alba:
     type: application
     platform: iOS
     sources:
-      - path: Sources
+      - path: Alba
       - path: Sounds # generata da scripts/genera_suoni.py prima di xcodegen
         buildPhase: resources
     info:
       path: Generated/Info.plist
       properties:
-        CFBundleDisplayName: Sveglia NFC
-        CFBundleShortVersionString: "0.1"
-        CFBundleVersion: "1"
+        CFBundleDisplayName: Alba
+        CFBundleDevelopmentRegion: it
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)" # numero della build di GitHub Actions
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSAlarmKitUsageDescription: "Serve per far suonare la sveglia all'orario scelto, anche con il telefono bloccato o in silenzioso."
+        UIUserInterfaceStyle: Dark
+        NSAlarmKitUsageDescription: "Alba usa le sveglie di sistema per suonare all'orario scelto, anche con il telefono bloccato o in silenzioso."
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.svegliatag.prototipo # cambia qui il Bundle ID
+        PRODUCT_BUNDLE_IDENTIFIER: com.svegliatag.alba # definitivo: non cambiarlo mai (cancellerebbe i dati)
+        CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
