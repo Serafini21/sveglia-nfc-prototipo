@@ -86,21 +86,22 @@ Dopo ogni prova apri la scheda **Log** dell'app e usa **Condividi log** per mand
 |---|---|
 | Installazione da Windows con Apple ID gratuito | ✅ Sideloadly funziona; nessuna capability necessaria |
 | Sveglia ad app chiusa, telefono bloccato, in silenzioso | ✅ |
+| Sveglia dopo un riavvio del telefono | ✅ |
 | Limite di sveglie | ✅ 61 sveglie accettate senza errori (limite reale non raggiunto) |
 | Stop dal pulsante o dal tasto laterale | ✅ lo `stopIntent` parte anche ad app chiusa; la sveglia successiva della catena suona regolarmente |
 | Sveglie non fermate | ⚠️ **si accumulano**: la nuova copre la vecchia, che resta "in corso". Risolto: lo Stop ferma anche quelle accumulate |
-| Tasti volume | ❌ **zittiscono senza fermare**: la sveglia resta attiva, le successive diventano "in corso" ma senza suono (log: 7 in corso insieme). È un modo per imbrogliare che AlarmKit non permette di intercettare |
+| Tasti volume | ❌ **zittiscono senza fermare**: la sveglia resta attiva, le successive diventano "in corso" ma senza suono (log: 7 in corso insieme; confermato: neanche la sirena "punizione" della 5ª si sente). È un modo per imbrogliare che AlarmKit non permette di intercettare |
 | App Intent da Comandi Rapidi / automazione NFC | ✅ ferma tutto, senza aprire l'app |
-| Tag NFC a telefono bloccato | ❌ l'automazione parte **solo a telefono sbloccato**: è un limite di iOS, non dell'app |
+| Tag NFC a telefono bloccato | ⚠️ funziona se il telefono era **già sbloccato** (anche se è rimasto sulla schermata di blocco) quando parte la sveglia. Se era bloccato, **mentre la sveglia suona Face ID non sblocca** e bisogna sbloccarlo per forza. È un limite di iOS, non dell'app |
 | Carta d'identità come tag | ❌ non è utilizzabile (probabilmente cambia identificativo a ogni lettura) |
 | Durata suono | ✅ il file da 3 min suona intero, poi **ricomincia in loop**; la sveglia non si spegne da sola (lasciata suonare oltre 4 min) |
-| Volume crescente dentro il file | ⚠️ non percepito: da indagare (iOS potrebbe normalizzare il volume) |
+| Volume crescente dentro il file | ⚠️ si sente crescere solo nei primi secondi: probabilmente è la dissolvenza in entrata di iOS. La crescita lenta del file, su 3 minuti, non si percepisce |
 | Cambio suono lungo la catena | ✅ ogni sveglia ha il suo suono: la sirena "punizione" parte dalla 5ª |
 
 Conseguenze per l'app finale:
 - **Sveglia progressiva di 15 min**: un file lungo funziona, perché viene ripetuto in loop finché non lo fermi. Se però il volume crescente dentro il file non si sente, l'alternativa è una catena di sveglie con file sempre più forti: ogni nuova sveglia copre la precedente con il suo suono.
 - **Buco del volume**: non si può chiudere con AlarmKit. Si può però *rilevarlo*: all'apertura successiva l'app trova sveglie rimaste "in corso" e lo registra, per esempio nelle statistiche.
-- **Tag col telefono bloccato**: prima va sbloccato (basta Face ID, *da verificare se senza scorrere verso l'alto*).
+- **Tag col telefono bloccato**: mentre la sveglia suona Face ID non sblocca, quindi bisogna sbloccare il telefono per forza prima di avvicinarlo al tag. Va spiegato all'utente nell'app finale (per esempio con il titolo della sveglia: "Sblocca e avvicina al tag").
 
 ## Rigenerare il progetto (solo se hai un Mac, facoltativo)
 ```bash
