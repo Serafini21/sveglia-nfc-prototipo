@@ -1,0 +1,23 @@
+name: SDK dump (temporaneo)
+on: workflow_dispatch
+jobs:
+  dump:
+    runs-on: macos-26
+    steps:
+      - name: Copia le interfacce Swift di AlarmKit e AppIntents
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "$SDK"
+          mkdir out
+          for FW in AlarmKit AppIntents; do
+            F=$(find "$SDK/System/Library/Frameworks/$FW.framework" -name "arm64e-apple-ios.swiftinterface" | head -1)
+            echo "$FW -> $F"
+            cp "$F" "out/$FW.swiftinterface"
+          done
+          grep -n "openAppWhenRun\|supportedModes" out/AppIntents.swiftinterface | head -40
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk
+          path: out
