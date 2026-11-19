@@ -4,6 +4,7 @@ import UIKit
 struct HomeView: View {
     @EnvironmentObject var stato: StatoApp
     @State private var modifica: InModifica?
+    @State private var dormire = false
 
     struct InModifica: Identifiable {
         let sveglia: Sveglia
@@ -18,25 +19,45 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Text("Alba")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(Tema.testo)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 5) { cambiaSviluppatore() }
-                        .accessibilityAddTraits(.isHeader)
-                }
-                .listRowBackground(Color.clear)
+                Group {
+                    HStack {
+                        // 5 tocchi sul titolo: modalità sviluppatore
+                        Titolo(testo: "Sveglie")
+                            .contentShape(Rectangle())
+                            .onTapGesture(count: 5) { cambiaSviluppatore() }
+                        Spacer()
+                        Label("\(Regole.streak(stato.dati.mattine)) giorni", systemImage: "flame")
+                            .font(.inter(14, .semibold))
+                            .foregroundStyle(Tema.ambra)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(Tema.superficie2, in: Capsule())
+                            .accessibilityLabel("Streak: \(Regole.streak(stato.dati.mattine)) giorni di fila")
+                    }
+                    .padding(.top, 8)
 
-                AvvisiHome()
+                    AvvisiHome()
 
-                Section { ProssimaScheda() }
-                    .listRowBackground(Tema.superficie)
+                    ProssimaScheda()
 
-                Section("Sveglie") {
+                    Button { dormire = true } label: {
+                        Label("Vado a dormire ora", systemImage: "moon")
+                    }
+                    .buttonStyle(PulsantePrincipale(altezza: 64))
+
+                    HStack {
+                        Text("Le mie sveglie").font(.inter(17, .semibold)).foregroundStyle(Tema.testo)
+                        Spacer()
+                        Button { modifica = InModifica(sveglia: Sveglia(), nuova: true) } label: {
+                            Image(systemName: "plus")
+                        }
+                        .buttonStyle(PulsanteIcona())
+                        .accessibilityLabel("Nuova sveglia")
+                    }
+                    .padding(.top, 4)
+
                     if sveglie.isEmpty {
-                        Text("Nessuna sveglia. Tocca + per crearne una.").foregroundStyle(Tema.testo2)
+                        Text("Nessuna sveglia. Tocca + per crearne una.")
+                            .font(.inter(15)).foregroundStyle(Tema.testo2)
                     }
                     ForEach(sveglie) { s in
                         RigaSveglia(sveglia: s)
@@ -50,27 +71,30 @@ struct HomeView: View {
                                     .tint(Tema.ambra)
                             }
                     }
-                }
-                .listRowBackground(Tema.superficie)
+                    if !sveglie.isEmpty {
+                        Text("Scorri una sveglia a sinistra per eliminarla, a destra per copiarla")
+                            .font(.inter(13)).foregroundStyle(Tema.testo3)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                    }
 
-                if stato.dati.impostazioni.sviluppatore {
-                    Section {
-                        NavigationLink { SviluppatoreView() } label: { Label("Modalità sviluppatore", systemImage: "hammer") }
+                    if stato.dati.impostazioni.sviluppatore {
+                        NavigationLink { SviluppatoreView() } label: {
+                            Label("Modalità sviluppatore", systemImage: "hammer").font(.inter(15))
+                        }
+                        .scheda()
                     }
-                    .listRowBackground(Tema.superficie)
                 }
+                .rigaLibera()
             }
+            .listStyle(.plain)
             .stileAlba()
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { modifica = InModifica(sveglia: Sveglia(), nuova: true) } label: {
-                        Image(systemName: "plus").font(.title3.weight(.semibold))
-                    }
-                    .accessibilityLabel("Nuova sveglia")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $modifica) { m in
                 ModificaSvegliaView(sveglia: m.sveglia, nuova: m.nuova).environmentObject(stato)
+            }
+            .sheet(isPresented: $dormire) {
+                DormireView().environmentObject(stato)
             }
         }
     }
@@ -109,13 +133,13 @@ struct RigaSveglia: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(String(format: "%02d:%02d", sveglia.ora, sveglia.minuti))
-                    .font(.system(size: 36, weight: .semibold, design: .rounded))
-                    .foregroundStyle(sveglia.attiva ? Tema.testo : Tema.testo2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(sveglia.ora):\(String(format: "%02d", sveglia.minuti))")
+                    .font(.grotesk(30))
+                    .foregroundStyle(sveglia.attiva ? Tema.testo : Tema.testo3)
                 Text("\(sveglia.nome) · \(Formati.giorni(sveglia))")
-                    .font(.subheadline)
-                    .foregroundStyle(Tema.testo2)
+                    .font(.inter(14))
+                    .foregroundStyle(sveglia.attiva ? Tema.testo2 : Tema.testo3)
             }
             Spacer()
             if bloccata {
@@ -126,7 +150,8 @@ struct RigaSveglia: View {
                 .tint(Tema.ambra)
                 .disabled(bloccata)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 18).padding(.vertical, 16)
+        .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func attiva(_ valore: Bool) {
@@ -146,47 +171,78 @@ struct ProssimaScheda: View {
     @EnvironmentObject var stato: StatoApp
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("PROSSIMA SVEGLIA").font(.caption.weight(.semibold)).foregroundStyle(Tema.testo2)
+        VStack(alignment: .leading, spacing: 10) {
+            EtichettaSezione(testo: "Prossima sveglia")
             if let m = stato.prossima {
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(Formati.ora(m.orario))
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(Tema.ambra)
-                        Text("\(m.nome) · \(Formati.quando(m.orario))").foregroundStyle(Tema.testo)
-                        Text(Formati.traQuanto(m.orario, da: ctx.date)).font(.subheadline).foregroundStyle(Tema.testo2)
-                        if m.bloccata(ctx.date) {
-                            Label("Bloccata: suona entro 2 ore", systemImage: "lock.fill")
-                                .font(.subheadline).foregroundStyle(Tema.ambra)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text(Formati.ora(m.orario))
+                                .font(.grotesk(56))
+                                .tracking(-1)
+                                .foregroundStyle(Tema.testo)
+                            Text(Formati.traQuanto(m.orario, da: ctx.date))
+                                .font(.inter(15)).foregroundStyle(Tema.testo2)
+                        }
+                        Text("\(m.nome) · \(Formati.quando(m.orario))")
+                            .font(.inter(14)).foregroundStyle(Tema.testo2)
+                        progressiva
+                        HStack(spacing: 8) {
+                            Label(m.bloccata(ctx.date) ? "Bloccata: serve il tag"
+                                  : "Bloccata dalle \(Formati.ora(m.inizio.addingTimeInterval(-Costanti.finestraPrima)))",
+                                  systemImage: "lock")
+                                .font(.inter(13, .medium))
+                                .foregroundStyle(m.bloccata(ctx.date) ? Tema.ambra : Tema.testoChiaro)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(Tema.superficie2, in: Capsule())
+                            if m.test { Pastiglia(testo: "TEST") }
                         }
                         if let r = m.ridotta {
                             Label("Programmata ridotta (\(r)): limite di sveglie di iOS", systemImage: "exclamationmark.triangle")
-                                .font(.footnote).foregroundStyle(Tema.pericolo)
+                                .font(.inter(13)).foregroundStyle(Tema.pericolo)
                         }
                     }
                 }
             } else {
-                Text("Nessuna sveglia programmata").foregroundStyle(Tema.testo2)
+                Text("Nessuna sveglia programmata").font(.inter(17, .semibold)).foregroundStyle(Tema.testo2)
+                progressiva
             }
-            Divider().overlay(Tema.bordo)
-            Toggle(isOn: Binding(get: { stato.dati.impostazioni.progressiva }, set: { cambiaProgressiva($0) })) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Risveglio progressivo").foregroundStyle(Tema.testo)
-                    Text("15 minuti di suono dolce, sempre più forte, prima della sveglia")
-                        .font(.caption).foregroundStyle(Tema.testo2)
-                }
-            }
-            .tint(Tema.ambra)
         }
-        .padding(.vertical, 6)
+        .scheda(raggio: 22, margine: 20)
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Tema.bordo, lineWidth: 1))
     }
 
-    private func cambiaProgressiva(_ valore: Bool) {
+    private var progressiva: some View {
+        InterruttoreProgressiva(sottotitolo: nil)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(stato.dati.impostazioni.progressiva ? Tema.ambraTenue : Tema.notte,
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+/// Interruttore unico della progressiva: vale per tutte le sveglie e ricorda l'ultima scelta.
+struct InterruttoreProgressiva: View {
+    @EnvironmentObject var stato: StatoApp
+    let sottotitolo: String?
+
+    var body: some View {
+        Toggle(isOn: Binding(get: { stato.dati.impostazioni.progressiva }, set: { cambia($0) })) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Sveglia progressiva 15 min").font(.inter(15, .semibold)).foregroundStyle(Tema.testo)
+                Text(sottotitolo ?? (stato.dati.impostazioni.progressiva
+                                     ? "Suono dolce sempre più forte nei 15 minuti prima"
+                                     : "Disattivata: la sveglia parte all'improvviso"))
+                    .font(.inter(12)).foregroundStyle(Tema.testo2)
+            }
+        }
+        .tint(Tema.ambra)
+    }
+
+    private func cambia(_ valore: Bool) {
         stato.dati.impostazioni.progressiva = valore // riscontro immediato; lo Store conferma subito dopo
         Task {
             await AlarmEngine.shared.impostaProgressiva(valore)
-            stato.avvisa(valore ? "Risveglio progressivo attivo" : "Risveglio progressivo disattivato")
+            stato.avvisa(valore ? "Sveglia progressiva attiva" : "Sveglia progressiva disattivata")
         }
     }
 }
@@ -218,19 +274,15 @@ struct AvvisiHome: View {
     }
 
     private func avviso(_ testo: String, pulsante: String?, azione: @escaping () -> Void) -> some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                Label(testo, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Tema.testo)
-                if let pulsante {
-                    Button(pulsante, action: azione)
-                        .buttonStyle(.borderedProminent)
-                        .tint(Tema.ambra)
-                        .foregroundStyle(Tema.suAmbra)
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            Label(testo, systemImage: "exclamationmark.triangle.fill")
+                .font(.inter(14))
+                .foregroundStyle(Tema.testo)
+            if let pulsante {
+                Button(pulsante, action: azione).buttonStyle(PulsantePrincipale(altezza: 44))
             }
-            .padding(.vertical, 4)
         }
-        .listRowBackground(Tema.ambraTenue)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .scheda(Tema.ambraTenue)
     }
 }

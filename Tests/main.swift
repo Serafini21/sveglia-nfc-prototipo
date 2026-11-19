@@ -194,6 +194,34 @@ do {
     verifica(Regole.unaTantumFinite([ripetuta], mattine: [], ora: data(30, 0, 0)).isEmpty, "le sveglie ripetute non spariscono")
 }
 
+// MARK: Fase 2: vado a dormire, statistiche
+do {
+    let cicli = Regole.cicliSonno(da: data(18, 23, 30))
+    verifica(cicli.map(\.cicli) == [3, 4, 5, 6], "proposte da 3 a 6 cicli")
+    verifica(cicli[0].orario == data(19, 4, 15) && cicli[2].orario == data(19, 7, 15), "23:30 → 4:15 (3 cicli), 7:15 (5 cicli)")
+    verifica(cicli[2].durata == 7.5 * 3600, "5 cicli = 7 h 30")
+    verifica(Regole.cicliSonno(da: data(18, 23, 30, 20))[0].orario == data(19, 4, 16), "dal minuto intero successivo")
+
+    func chiusa(_ e: Esito, giorno: Int, ora: Int = 7, punti: Int?, tts: TimeInterval? = nil, test: Bool = false) -> Mattina {
+        var m = mattina()
+        m.orario = data(giorno, ora, 0)
+        m.esito = e
+        m.punteggio = punti
+        m.timeToScan = tts
+        m.test = test
+        return m
+    }
+    let storia = [chiusa(.tag, giorno: 13, punti: 90, tts: 60), chiusa(.tag, giorno: 17, punti: 80, tts: 120),
+                  chiusa(.tag, giorno: 17, ora: 9, punti: 70, tts: 180), chiusa(.fuoriCasa, giorno: 18, punti: nil),
+                  chiusa(.fallita, giorno: 19, punti: 0), chiusa(.tag, giorno: 19, ora: 6, punti: 100, tts: 5, test: true)]
+    verifica(Regole.conteggiate(storia) == 4, "conteggiate: senza test e fuori casa")
+    verifica(Regole.mediaTimeToScan(storia) == 120, "media al tag: (60 + 120 + 180) / 3")
+    let settimana = Regole.punteggiGiorni(storia, ora: data(19, 12, 0), calendario: cal)
+    verifica(settimana.count == 7 && settimana.first?.giorno == data(13, 0, 0) && settimana.last?.giorno == data(19, 0, 0),
+             "7 giorni, da 6 giorni fa a oggi")
+    verifica(settimana.map(\.punteggio) == [90, nil, nil, nil, 70, nil, 0], "ultima mattina del giorno, test esclusi, fuori casa vuoto")
+}
+
 // MARK: Codice, nomi, frase, profilo
 do {
     let codice = Regole.nuovoCodice()

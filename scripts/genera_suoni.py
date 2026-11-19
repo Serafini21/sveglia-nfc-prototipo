@@ -74,6 +74,68 @@ def energica(secondi=3.0):
     return normalizza(out)
 
 
+def suona_note(secondi, note, timbro):
+    """Somma di note (inizio s, frequenza Hz) col timbro dato, normalizzata."""
+    out = [0.0] * int(secondi * RATE)
+    for inizio, f in note:
+        for n in range(int(inizio * RATE), len(out)):
+            dt = n / RATE - inizio
+            v = timbro(f, dt)
+            if v is None:
+                break
+            out[n] += v
+    return normalizza(out)
+
+
+def marimba(f, dt):
+    if dt > 1.2:
+        return None
+    attacco = min(1.0, dt / 0.004)
+    return attacco * math.exp(-5.0 * dt) * (math.sin(2 * math.pi * f * dt) + 0.35 * math.exp(-20 * dt) * math.sin(2 * math.pi * 4 * f * dt))
+
+
+def campana(f, dt):
+    if dt > 2.5:
+        return None
+    attacco = min(1.0, dt / 0.003)
+    parziali = ((1.0, 1.0), (2.76, 0.5), (5.40, 0.25), (8.93, 0.12))
+    return attacco * sum(a * math.exp(-(1.6 + r) * dt) * math.sin(2 * math.pi * f * r * dt) for r, a in parziali)
+
+
+def chiaro(secondi=4.8):
+    """Mattino chiaro: arpeggio di marimba in do maggiore che sale e scende."""
+    scala = [523.3, 659.3, 784.0, 1046.5, 784.0, 659.3]
+    return suona_note(secondi, [(i * 0.4, f) for i, f in enumerate(scala * 2)], marimba)
+
+
+def brezza(secondi=6.0):
+    """Brezza: accordi morbidi (do maggiore 7, la minore 7) con attacco lento."""
+    accordi = [(0.0, [261.6, 329.6, 392.0, 493.9]), (3.0, [220.0, 261.6, 329.6, 392.0])]
+    out = []
+    for n in range(int(secondi * RATE)):
+        t = n / RATE
+        s = 0.0
+        for inizio, freq in accordi:
+            dt = t - inizio
+            if 0 <= dt < 3.0:
+                inviluppo = math.sin(math.pi * dt / 3.0) ** 2  # sale e scende, il loop resta morbido
+                s += inviluppo * sum(math.sin(2 * math.pi * f * t) + 0.5 * math.sin(2 * math.pi * f * 1.003 * t) for f in freq)
+        out.append(s)
+    return normalizza(out)
+
+
+def campanelli(secondi=4.0):
+    """Campanelli: due rintocchi doppi ogni 2 s."""
+    note = [(0.0, 784.0), (0.25, 1174.7), (2.0, 784.0), (2.25, 1174.7)]
+    return suona_note(secondi, note, campana)
+
+
+def allegro(secondi=3.2):
+    """Allegro: motivo veloce di marimba in sedicesimi, acuto e insistente."""
+    motivo = [1046.5, 1318.5, 1568.0, 1318.5, 1046.5, 1568.0, 2093.0, 1568.0]
+    return suona_note(secondi, [(i * 0.1, f) for i, f in enumerate(motivo * 4)], marimba)
+
+
 def punizione(secondi=4.2):
     """Sirena acuta a spazzata veloce (700-1600 Hz ogni 0,35 s) con onda quadra: martellante.
     Diversa dall'IT-alert (tono fisso modulato). 4,2 s = multiplo di 0,35 e 0,12, cosi' il loop non si sente."""
@@ -100,7 +162,10 @@ if __name__ == "__main__":
     dest = sys.argv[1] if len(sys.argv) > 1 else "Sounds"
     os.makedirs(dest, exist_ok=True)
 
-    suoni = {"dolce.wav": dolce(), "normale.wav": normale(), "energica.wav": energica(), "punizione.wav": punizione()}
+    # i nomi dei file sono i rawValue di Suoneria in Alba/Modello.swift
+    suoni = {"dolce.wav": dolce(), "chiaro.wav": chiaro(), "brezza.wav": brezza(),
+             "normale.wav": normale(), "campanelli.wav": campanelli(),
+             "energica.wav": energica(), "allegro.wav": allegro(), "punizione.wav": punizione()}
     for nome, campioni in suoni.items():
         scrivi(os.path.join(dest, nome), campioni)
 
@@ -114,7 +179,7 @@ if __name__ == "__main__":
         path = os.path.join(dest, nome)
         with wave.open(path) as w:
             assert w.getframerate() == RATE and w.getnchannels() == 1 and w.getsampwidth() == 2, nome
-            assert 2.9 < w.getnframes() / RATE < 4.3, nome
+            assert 2.9 < w.getnframes() / RATE < 6.1, nome
         totale += os.path.getsize(path)
     picchi = [picco(os.path.join(dest, f"dolce_{i:02d}.wav")) for i in range(1, LIVELLI + 1)]
     assert all(a < b for a, b in zip(picchi, picchi[1:])), picchi

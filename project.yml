@@ -11,6 +11,8 @@ targets:
       - path: Alba
       - path: Sounds # generata da scripts/genera_suoni.py prima di xcodegen
         buildPhase: resources
+      - path: Fonts # scaricata dal workflow (Space Grotesk e Inter, OFL)
+        buildPhase: resources
     info:
       path: Generated/Info.plist
       properties:
@@ -21,6 +23,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIUserInterfaceStyle: Dark
+        UIAppFonts: [SpaceGrotesk.ttf, Inter.ttf]
         NSAlarmKitUsageDescription: "Alba usa le sveglie di sistema per suonare all'orario scelto, anche con il telefono bloccato o in silenzioso."
     settings:
       base:

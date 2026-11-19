@@ -27,6 +27,20 @@ jobs:
             Alba/Modello.swift Alba/Regole.swift Tests/main.swift
           ./build-test/test_regole
 
+      - name: Scarica i font (Space Grotesk e Inter, licenza OFL)
+        run: |
+          mkdir -p Fonts
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          if curl -fsSL "$base/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf" -o Fonts/SpaceGrotesk.ttf \
+            && curl -fsSL "$base/spacegrotesk/OFL.txt" -o Fonts/OFL-SpaceGrotesk.txt \
+            && curl -fsSL "$base/inter/Inter%5Bopsz%2Cwght%5D.ttf" -o Fonts/Inter.ttf \
+            && curl -fsSL "$base/inter/OFL.txt" -o Fonts/OFL-Inter.txt; then
+            ls -la Fonts
+          else
+            echo "::warning::Font non scaricati: l'app userà i font di sistema"
+            rm -f Fonts/*
+          fi
+
       - name: Genera suoni e progetto
         run: |
           python3 scripts/genera_suoni.py Sounds

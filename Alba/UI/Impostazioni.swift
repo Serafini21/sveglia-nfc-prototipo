@@ -75,6 +75,26 @@ struct ImpostazioniView: View {
                 }
                 .listRowBackground(Tema.superficie)
 
+                Section {
+                    LabeledContent("Risuona dopo uno stop", value: "\(ParametriMattina(progressiva: false).intervalloCatenaSec) s")
+                    LabeledContent("Durata della catena", value: "\(ParametriMattina(progressiva: false).durataCatenaMin) min")
+                    LabeledContent("Sirena dalla sveglia n°", value: "\(Costanti.primaPunizione)")
+                    LabeledContent("Blocco modifiche", value: "\(Int(Costanti.finestraPrima / 3600)) h prima")
+                    LabeledContent("Tolleranza Stop → tag", value: "\(Int(Costanti.tolleranzaStopTag)) s")
+                } header: {
+                    Text("Regole anti-trucco")
+                }
+                .listRowBackground(Tema.superficie)
+
+                Section {
+                    NavigationLink { RoutineEditor() } label: {
+                        LabeledContent("Routine del mattino", value: "\(stato.dati.routine.count) voci")
+                    }
+                } footer: {
+                    Text("La checklist compare nella schermata «Buongiorno!» dopo il tag.")
+                }
+                .listRowBackground(Tema.superficie)
+
                 Section("Diagnostica") {
                     NavigationLink { LogView() } label: { Label("Log", systemImage: "doc.text") }
                     if let fileLog {
@@ -90,6 +110,7 @@ struct ImpostazioniView: View {
                     .listRowBackground(Tema.superficie)
                 }
             }
+            .font(.inter(16))
             .stileAlba()
             .navigationTitle("Impostazioni")
             .task {
@@ -97,6 +118,58 @@ struct ImpostazioniView: View {
                 notifiche = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
             }
         }
+    }
+}
+
+/// Checklist del mattino: aggiungi, elimina (scorrendo) e riordina le voci.
+struct RoutineEditor: View {
+    @EnvironmentObject var stato: StatoApp
+    @State private var nuova = ""
+
+    var body: some View {
+        List {
+            Section {
+                if stato.dati.routine.isEmpty {
+                    Text("Nessuna voce. Per esempio: bevi un bicchiere d'acqua, apri le finestre.")
+                        .foregroundStyle(Tema.testo2)
+                }
+                ForEach(stato.dati.routine) { v in Text(v.testo).foregroundStyle(Tema.testo) }
+                    .onDelete { posizioni in
+                        let ids = posizioni.map { stato.dati.routine[$0].id }
+                        Task { await Store.shared.modifica { $0.routine.removeAll { ids.contains($0.id) } } }
+                    }
+                    .onMove { da, a in
+                        var r = stato.dati.routine
+                        r.move(fromOffsets: da, toOffset: a)
+                        let nuovoOrdine = r
+                        Task { await Store.shared.modifica { $0.routine = nuovoOrdine } }
+                    }
+            }
+            .listRowBackground(Tema.superficie)
+
+            Section {
+                HStack {
+                    TextField("Nuova voce", text: $nuova)
+                        .submitLabel(.done)
+                        .onSubmit { aggiungi() }
+                    Button("Aggiungi") { aggiungi() }
+                        .disabled(nuova.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .listRowBackground(Tema.superficie)
+        }
+        .font(.inter(16))
+        .stileAlba()
+        .navigationTitle("Routine del mattino")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { EditButton() }
+    }
+
+    private func aggiungi() {
+        let testo = nuova.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !testo.isEmpty else { return }
+        nuova = ""
+        Task { await Store.shared.modifica { $0.routine.append(VoceRoutine(testo: testo)) } }
     }
 }
 

@@ -30,6 +30,12 @@ enum Costanti {
 
     static let fraseEmergenza = "Sono sveglio e mi alzo"
     static let secondiEmergenza: Double = 10
+
+    // "Vado a dormire ora"
+    static let addormentarsi: TimeInterval = 15 * 60
+    static let cicloSonno: TimeInterval = 90 * 60
+    static let cicliProposti = [3, 4, 5, 6]
+    static let cicliConsigliati = 5
 }
 
 extension Mattina {
@@ -224,6 +230,50 @@ enum Regole {
 
     static func riuscite(_ mattine: [Mattina]) -> Int {
         mattine.filter { !$0.test && ($0.esito?.riuscita ?? false) }.count
+    }
+
+    /// Mattine che contano nelle statistiche: chiuse, non di test, non fuori casa.
+    static func conteggiate(_ mattine: [Mattina]) -> Int {
+        mattine.filter { !$0.test && $0.esito != nil && $0.esito != .fuoriCasa }.count
+    }
+
+    /// Media del tempo al tag delle ultime 30 mattine chiuse col tag.
+    static func mediaTimeToScan(_ mattine: [Mattina]) -> TimeInterval? {
+        let tempi = mattine.filter { !$0.test && $0.esito == .tag }
+            .sorted { $0.orario > $1.orario }.prefix(30).compactMap(\.timeToScan)
+        return tempi.isEmpty ? nil : tempi.reduce(0, +) / Double(tempi.count)
+    }
+
+    struct GiornoPunteggio: Equatable {
+        var giorno: Date
+        var punteggio: Int?
+    }
+
+    /// Punteggio degli ultimi `giorni` giorni (oggi compreso, dal più vecchio): l'ultima mattina conteggiata di ogni giorno.
+    static func punteggiGiorni(_ mattine: [Mattina], giorni: Int = 7, ora: Date, calendario cal: Calendar = .current) -> [GiornoPunteggio] {
+        let oggi = cal.startOfDay(for: ora)
+        return (0..<giorni).reversed().compactMap { k in
+            guard let giorno = cal.date(byAdding: .day, value: -k, to: oggi) else { return nil }
+            let delGiorno = mattine.filter { !$0.test && $0.punteggio != nil && cal.isDate($0.orario, inSameDayAs: giorno) }
+            return GiornoPunteggio(giorno: giorno, punteggio: delGiorno.max { $0.orario < $1.orario }?.punteggio)
+        }
+    }
+
+    // MARK: - Vado a dormire ora
+
+    struct Ciclo: Equatable {
+        var cicli: Int
+        var orario: Date
+        var durata: TimeInterval
+    }
+
+    /// Orari a cicli completi: dal minuto intero successivo + 15 min per addormentarsi + k × 90 min.
+    static func cicliSonno(da ora: Date) -> [Ciclo] {
+        let base = (ora.timeIntervalSinceReferenceDate / 60).rounded(.up) * 60
+        return Costanti.cicliProposti.map { k in
+            let durata = Double(k) * Costanti.cicloSonno
+            return Ciclo(cicli: k, orario: Date(timeIntervalSinceReferenceDate: base + Costanti.addormentarsi + durata), durata: durata)
+        }
     }
 
     // MARK: - Crediti Emergency

@@ -54,16 +54,34 @@ struct Sveglia: Codable, Equatable, Identifiable {
     var test: ParametriMattina?
 }
 
+/// Suonerie dell'app. I valori rawValue sono salvati nel JSON: non rinominarli.
 enum Suoneria: String, Codable, CaseIterable, Identifiable {
-    case dolce, normale, energica
+    case dolce, chiaro, brezza, normale, campanelli, energica, allegro
     var id: String { rawValue }
     var file: String { "\(rawValue).wav" }
     var nome: String {
         switch self {
-        case .dolce: "Dolce"
+        case .dolce: "Alba"
+        case .chiaro: "Mattino chiaro"
+        case .brezza: "Brezza"
         case .normale: "Classica"
+        case .campanelli: "Campanelli"
         case .energica: "Energica"
+        case .allegro: "Allegro"
         }
+    }
+    var categoria: Categoria {
+        switch self {
+        case .dolce, .chiaro, .brezza: .dolci
+        case .normale, .campanelli: .normali
+        case .energica, .allegro: .energiche
+        }
+    }
+
+    enum Categoria: String, CaseIterable, Identifiable {
+        case dolci, normali, energiche
+        var id: String { rawValue }
+        var nome: String { rawValue.capitalized }
     }
 }
 
@@ -162,4 +180,6 @@ struct Mattina: Codable, Equatable, Identifiable {
     var stopPenalizzati: Int?
     var punteggio: Int?
     var risveglioVisto = false
+    /// Voci della routine spuntate dopo il risveglio (Fase 2: opzionale, i file della Fase 1 non lo hanno).
+    var routineFatte: [UUID]?
 }

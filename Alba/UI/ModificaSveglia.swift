@@ -35,80 +35,123 @@ struct ModificaSvegliaView: View {
         return Regole.occorrenze(b, dopo: Date(), fino: Date().addingTimeInterval(8 * 86400)).first
     }
 
+    private var suoneria: Suoneria { Suoneria(rawValue: s.suoneria) ?? .normale }
+
     var body: some View {
         NavigationStack {
-            Form {
-                if bloccata {
-                    Section {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Label("Sveglia bloccata", systemImage: "lock.fill").font(.headline).foregroundStyle(Tema.ambra)
-                            Text("Suona entro 2 ore. Per modificarla, disattivarla o eliminarla avvicina il tag: la mattina viene annullata in anticipo (conta come riuscita) e la sveglia si sblocca. In alternativa usa l'Emergency Stop.")
-                                .foregroundStyle(Tema.testo)
-                            Button("Emergency Stop") {
-                                chiudi()
-                                stato.schermata = .emergenza
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    intestazione
+
+                    if bloccata { avvisoBloccata }
+
+                    Group {
+                        VStack(spacing: 4) {
+                            DatePicker("Orario", selection: $orario, displayedComponents: .hourAndMinute)
+                                .datePickerStyle(.wheel)
+                                .labelsHidden()
+                            Label(prossima.map { "Prossima: \(Formati.quando($0))" } ?? "Nessuna occorrenza",
+                                  systemImage: "calendar")
+                                .font(.inter(14, .medium))
+                                .foregroundStyle(Tema.ambra)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            EtichettaSezione(testo: "Nome")
+                            TextField("Nome", text: $s.nome)
+                                .font(.inter(16))
+                                .padding(.horizontal, 16)
+                                .frame(height: 48)
+                                .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Tema.bordo, lineWidth: 1))
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            EtichettaSezione(testo: "Ripeti")
+                            SelettoreGiorni(giorni: $s.giorni)
+                            Text(s.giorni.isEmpty ? "Nessun giorno: suona una volta sola, poi sparisce." : "Suona nei giorni evidenziati.")
+                                .font(.inter(12)).foregroundStyle(Tema.testo2)
+                        }
+
+                        VStack(spacing: 0) {
+                            NavigationLink { SceltaSuoneria(selezione: $s.suoneria) } label: {
+                                riga("Suoneria", valore: suoneria.nome, colore: Tema.testo2)
                             }
-                            .buttonStyle(.bordered)
-                            .tint(Tema.pericolo)
+                            Divider().overlay(Tema.bordo)
+                            riga("Suoneria punizione", sotto: "Dalla 5ª sveglia della catena, circa 2 min dopo", valore: "Sirena",
+                                 colore: Tema.pericolo, freccia: false)
                         }
+                        .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
-                    .listRowBackground(Tema.ambraTenue)
-                }
+                    .disabled(bloccata)
 
-                Group {
-                    Section {
-                        DatePicker("Orario", selection: $orario, displayedComponents: .hourAndMinute)
-                            .datePickerStyle(.wheel)
-                            .labelsHidden()
-                            .frame(maxWidth: .infinity)
-                        Label {
-                            Text(prossima.map { "Prossima: \(Formati.quando($0))" } ?? "Nessuna occorrenza")
-                        } icon: {
-                            Image(systemName: "calendar")
-                        }
-                        .foregroundStyle(Tema.ambra)
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "lock").foregroundStyle(Tema.ambra)
+                        Text("Nelle 2 ore prima della sveglia non potrai modificarla, disattivarla o eliminarla senza il tag. Si spegne solo col tag, senza snooze.")
+                            .font(.inter(13)).foregroundStyle(Tema.testoChiaro)
                     }
+                    .scheda(Tema.notte, raggio: 16)
 
-                    Section {
-                        SelettoreGiorni(giorni: $s.giorni)
-                    } header: {
-                        Text("Ripeti")
-                    } footer: {
-                        Text(s.giorni.isEmpty ? "Nessun giorno scelto: suona una volta sola, poi sparisce." : "Suona nei giorni evidenziati.")
-                    }
-
-                    Section("Nome") {
-                        TextField("Nome", text: $s.nome)
-                    }
-
-                    Section {
-                        Picker("Suoneria", selection: $s.suoneria) {
-                            ForEach(Suoneria.allCases) { Text($0.nome).tag($0.rawValue) }
-                        }
-                    } footer: {
-                        Text("Dalla 5ª sveglia della catena (circa 2 minuti dopo l'orario, se non hai ancora usato il tag) suona la sirena di punizione.")
-                    }
-
-                    Section {
-                        Text("Nelle 2 ore prima della sveglia non potrai modificarla, disattivarla o eliminarla senza il tag (o l'Emergency Stop).")
-                            .font(.footnote)
-                            .foregroundStyle(Tema.testo2)
+                    if !nuova {
+                        Button("Elimina sveglia", role: .destructive) { elimina() }
+                            .font(.inter(15, .semibold))
+                            .foregroundStyle(Tema.pericolo)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .disabled(bloccata)
                     }
                 }
-                .disabled(bloccata)
-                .listRowBackground(Tema.superficie)
+                .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 28)
             }
-            .stileAlba()
-            .navigationTitle(nuova ? "Nuova sveglia" : "Modifica sveglia")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { chiudi() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(salvataggio ? "Salvo…" : "Salva") { salva() }
-                        .disabled(bloccata || salvataggio)
-                }
-            }
+            .background(Tema.sfondo.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
         }
+    }
+
+    private var intestazione: some View {
+        HStack {
+            Button { chiudi() } label: { Image(systemName: "chevron.left") }
+                .buttonStyle(PulsanteIcona())
+                .accessibilityLabel("Annulla")
+            Spacer()
+            Text(nuova ? "Nuova sveglia" : "Modifica sveglia").font(.inter(17, .semibold)).foregroundStyle(Tema.testo)
+            Spacer()
+            Button(salvataggio ? "Salvo…" : "Salva") { salva() }
+                .font(.inter(15, .bold))
+                .foregroundStyle(Tema.suAmbra)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(Tema.ambra.opacity(bloccata ? 0.4 : 1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .disabled(bloccata || salvataggio)
+        }
+    }
+
+    private var avvisoBloccata: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Sveglia bloccata", systemImage: "lock.fill").font(.inter(16, .semibold)).foregroundStyle(Tema.ambra)
+            Text("Suona entro 2 ore. Per modificarla avvicina il tag: la mattina viene annullata in anticipo (conta come riuscita) e la sveglia si sblocca. In alternativa usa l'Emergency Stop.")
+                .font(.inter(14)).foregroundStyle(Tema.testo)
+            Button("Emergency Stop") {
+                chiudi()
+                stato.schermata = .emergenza
+            }
+            .buttonStyle(PulsanteSecondario(testo: Tema.pericolo))
+        }
+        .scheda(Tema.ambraTenue)
+    }
+
+    private func riga(_ titolo: String, sotto: String? = nil, valore: String, colore: Color, freccia: Bool = true) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titolo).font(.inter(15)).foregroundStyle(Tema.testo)
+                if let sotto { Text(sotto).font(.inter(12)).foregroundStyle(Tema.testo2) }
+            }
+            Spacer()
+            Text(freccia ? "\(valore) ›" : valore).font(.inter(15)).foregroundStyle(colore)
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 56)
+        .contentShape(Rectangle())
     }
 
     private func salva() {
@@ -117,6 +160,15 @@ struct ModificaSvegliaView: View {
         Task {
             let r = await AlarmEngine.shared.salva(b)
             salvataggio = false
+            stato.avvisa(r.messaggio)
+            if r.ok { chiudi() }
+        }
+    }
+
+    private func elimina() {
+        let id = s.id
+        Task {
+            let r = await AlarmEngine.shared.elimina(id)
             stato.avvisa(r.messaggio)
             if r.ok { chiudi() }
         }
@@ -146,16 +198,59 @@ struct SelettoreGiorni: View {
                     if scelto { giorni.removeAll { $0 == g.id } } else { giorni.append(g.id); giorni.sort() }
                 } label: {
                     Text(g.lettera)
-                        .font(.headline)
+                        .font(.inter(15, scelto ? .bold : .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(scelto ? Tema.ambra : Tema.superficie2, in: RoundedRectangle(cornerRadius: 14))
-                        .foregroundStyle(scelto ? Tema.suAmbra : Tema.testo)
+                        .background(scelto ? Tema.ambra : Tema.superficie2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .foregroundStyle(scelto ? Tema.suAmbra : Tema.testoChiaro)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(g.nome)
                 .accessibilityAddTraits(scelto ? .isSelected : [])
             }
         }
-        .padding(.vertical, 4)
+    }
+}
+
+/// Libreria delle suonerie con anteprima al tocco.
+struct SceltaSuoneria: View {
+    @Binding var selezione: String
+
+    var body: some View {
+        List {
+            ForEach(Suoneria.Categoria.allCases) { categoria in
+                Section(categoria.nome) {
+                    ForEach(Suoneria.allCases.filter { $0.categoria == categoria }) { s in
+                        Button {
+                            selezione = s.rawValue
+                            Anteprima.shared.suona(s.file)
+                        } label: {
+                            HStack {
+                                Text(s.nome).font(.inter(16)).foregroundStyle(Tema.testo)
+                                Spacer()
+                                if s.rawValue == selezione {
+                                    Image(systemName: "checkmark").foregroundStyle(Tema.ambra).accessibilityLabel("Scelta")
+                                }
+                            }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .listRowBackground(Tema.superficie)
+            }
+            Section {
+                Button("Ascolta la sirena di punizione") { Anteprima.shared.suona(Suoni.punizione) }
+                    .font(.inter(15)).foregroundStyle(Tema.pericolo)
+            } footer: {
+                Text("Tocca una suoneria per sceglierla e ascoltarla. La sirena è fissa: parte dalla 5ª sveglia della catena.")
+            }
+            .listRowBackground(Tema.superficie)
+        }
+        .stileAlba()
+        .navigationTitle("Suoneria")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .onDisappear { Anteprima.shared.ferma() }
     }
 }

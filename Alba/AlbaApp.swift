@@ -16,6 +16,7 @@ struct AlbaApp: App {
                 .environmentObject(StatoApp.shared)
                 .preferredColorScheme(.dark)
                 .tint(Tema.ambra)
+                .font(.inter(16))
         }
     }
 }
@@ -58,6 +59,8 @@ final class StatoApp: ObservableObject {
         avviato = true
         dati = await Store.shared.leggi()
         caricato = true
+        let font = ["Space Grotesk", "Inter"].map { "\($0) \(UIFont.familyNames.contains($0) ? "ok" : "ASSENTE")" }
+        EventLog.scrivi("Font: " + font.joined(separator: ", "))
         if autorizzazione == .notDetermined {
             autorizzazione = await AlarmEngine.shared.chiediAutorizzazione()
         }

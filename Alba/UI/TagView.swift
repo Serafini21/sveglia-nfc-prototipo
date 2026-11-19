@@ -9,51 +9,57 @@ struct TagView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
+                Group {
+                    HStack {
+                        Titolo(testo: "I miei tag")
+                        Spacer()
+                        Button { guida = true } label: {
+                            Label("Aggiungi", systemImage: "plus")
+                                .font(.inter(15, .bold))
+                                .foregroundStyle(Tema.suAmbra)
+                                .padding(.horizontal, 14)
+                                .frame(minHeight: 44)
+                                .background(Tema.ambra, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 8)
+
                     if stato.dati.tag.isEmpty {
                         Text("Nessun tag. Aggiungine uno e mettilo lontano dal letto (bagno, cucina).")
-                            .foregroundStyle(Tema.testo2)
+                            .font(.inter(15)).foregroundStyle(Tema.testo2)
                     }
                     ForEach(stato.dati.tag) { t in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(t.nome).font(.headline).foregroundStyle(Tema.testo)
-                                Text(t.ultimaScansione.map { "Ultima scansione: \(Formati.quando($0))" } ?? "Mai scansionato")
-                                    .font(.caption).foregroundStyle(Tema.testo2)
+                        RigaTag(tag: t) { prova = t }
+                            .swipeActions {
+                                Button(role: .destructive) { elimina(t) } label: { Label("Elimina", systemImage: "trash") }
                             }
-                            Spacer()
-                            Button("Prova") { prova = t }
-                                .buttonStyle(.bordered)
-                                .tint(Tema.ambra)
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) { elimina(t) } label: { Label("Elimina", systemImage: "trash") }
-                        }
                     }
-                    Button { guida = true } label: { Label("Aggiungi tag", systemImage: "plus.circle.fill") }
-                } header: {
-                    Text("I miei tag")
-                }
-                .listRowBackground(Tema.superficie)
+                    if !stato.dati.tag.isEmpty {
+                        Text("Qualsiasi tag registrato spegne le sveglie. Scorri a sinistra per eliminarne uno.")
+                            .font(.inter(13)).foregroundStyle(Tema.testo2)
+                    }
 
-                Section {
-                    CodiceSegreto()
-                } header: {
-                    Text("Codice segreto")
-                } footer: {
-                    Text("Va scritto in ogni automazione NFC. Senza il codice giusto Alba rifiuta lo spegnimento e lo registra come tentativo sospetto.")
-                }
-                .listRowBackground(Tema.superficie)
+                    VStack(alignment: .leading, spacing: 10) {
+                        EtichettaSezione(testo: "Codice segreto")
+                        CodiceSegreto()
+                        Text("Va scritto in ogni automazione NFC. Senza il codice giusto Alba rifiuta lo spegnimento e lo registra come tentativo sospetto.")
+                            .font(.inter(13)).foregroundStyle(Tema.testo2)
+                    }
+                    .scheda()
 
-                Section("Come funziona") {
-                    Text("iOS legge il tag con un'automazione di Comandi Rapidi, che esegue l'azione «Spegni sveglia» di Alba. L'automazione parte solo a telefono sbloccato e, mentre la sveglia suona, Face ID non sblocca: premi Stop, sblocca e avvicina il tag entro 60 secondi. Così non hai nessuna penalità.")
-                        .font(.callout)
-                        .foregroundStyle(Tema.testo2)
+                    VStack(alignment: .leading, spacing: 8) {
+                        EtichettaSezione(testo: "Come funziona")
+                        Text("iOS legge il tag con un'automazione di Comandi Rapidi, che esegue l'azione «Spegni sveglia» di Alba. L'automazione parte solo a telefono sbloccato e, mentre la sveglia suona, Face ID non sblocca: premi Stop, sblocca e avvicina il tag entro 60 secondi. Così non hai nessuna penalità.")
+                            .font(.inter(14)).foregroundStyle(Tema.testoChiaro)
+                    }
+                    .scheda()
                 }
-                .listRowBackground(Tema.superficie)
+                .rigaLibera()
             }
+            .listStyle(.plain)
             .stileAlba()
-            .navigationTitle("Tag")
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $guida) { GuidaTagView().environmentObject(stato) }
             .sheet(item: $prova) { t in ProvaTagView(tag: t).environmentObject(stato) }
         }
@@ -65,6 +71,41 @@ struct TagView: View {
             EventLog.scrivi("Tag eliminato: \(t.nome)")
             stato.avvisa("Tag «\(t.nome)» eliminato. Elimina anche la sua automazione in Comandi Rapidi.")
         }
+    }
+}
+
+struct RigaTag: View {
+    let tag: TagNFC
+    let prova: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "wave.3.right")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(tag.ultimaScansione == nil ? Tema.testoChiaro : Tema.ambra)
+                .frame(width: 48, height: 48)
+                .background(tag.ultimaScansione == nil ? Tema.superficie2 : Tema.ambraTenue,
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(tag.nome).font(.inter(16, .semibold)).foregroundStyle(Tema.testo)
+                Text(tag.ultimaScansione.map { "Ultima scansione: \(Formati.quando($0))" } ?? "Mai scansionato")
+                    .font(.inter(13)).foregroundStyle(Tema.testo2)
+            }
+            Spacer()
+            Button(action: prova) {
+                if tag.ultimaScansione == nil {
+                    Pastiglia(testo: "Prova", colore: Tema.ambra, fondo: Tema.ambraTenue)
+                } else {
+                    Pastiglia(testo: "Pronto", colore: Tema.successo, fondo: Tema.successoFondo)
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(minHeight: 44)
+            .accessibilityLabel("Prova il tag \(tag.nome)")
+        }
+        .padding(16)
+        .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 
@@ -157,7 +198,11 @@ struct GuidaTagView: View {
                         }
                     }
                     Section {
-                        Button("Ho creato l'automazione: proviamo") { passo = 3 }
+                        Button("Apri Comandi Rapidi") {
+                            if let url = URL(string: "shortcuts://") { UIApplication.shared.open(url) }
+                        }
+                        Button("Fatto, provalo") { passo = 3 }
+                            .font(.inter(16, .semibold))
                     }
                 default:
                     if let tag {

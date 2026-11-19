@@ -65,6 +65,17 @@ actor AlarmEngine {
         }
     }
 
+    func segnaRoutine(_ mattinaID: UUID, voce: UUID, fatta: Bool) async {
+        await inCoda {
+            await Store.shared.modifica { d in
+                guard let i = d.mattine.firstIndex(where: { $0.id == mattinaID }) else { return }
+                var fatte = Set(d.mattine[i].routineFatte ?? [])
+                if fatta { fatte.insert(voce) } else { fatte.remove(voce) }
+                d.mattine[i].routineFatte = Array(fatte)
+            }
+        }
+    }
+
     func chiudiAvviso() async { await inCoda { await Store.shared.modifica { $0.avviso = nil } } }
 
     func minitestProgressiva() async -> Risposta { await inCoda { await self._minitest() } }
