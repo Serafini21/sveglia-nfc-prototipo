@@ -168,6 +168,32 @@ do {
     verifica(Regole.prossimoOrario(ora: 7, minuti: 0, dopo: data(19, 8, 0), calendario: cal) == data(20, 7, 0), "orario passato: domani")
 }
 
+// MARK: Sveglie una tantum finite
+do {
+    let ora = data(19, 11, 30)
+    let unaVolta = Sveglia(nome: "Una", ora: 12, minuti: 0, dataUnaTantum: data(19, 12, 0))
+    func mattinaDi(_ s: Sveglia, esito: Esito?) -> Mattina {
+        var m = mattina()
+        m.svegliaID = s.id
+        m.orario = s.dataUnaTantum!
+        m.esito = esito
+        return m
+    }
+    verifica(Regole.unaTantumFinite([unaVolta], mattine: [mattinaDi(unaVolta, esito: .anticipo)], ora: ora) == [unaVolta.id],
+             "annullata in anticipo: la sveglia una tantum sparisce subito")
+    verifica(Regole.unaTantumFinite([unaVolta], mattine: [mattinaDi(unaVolta, esito: nil)], ora: data(19, 12, 10)).isEmpty,
+             "mattina ancora aperta: resta")
+    verifica(Regole.unaTantumFinite([unaVolta], mattine: [], ora: ora).isEmpty, "ancora da suonare: resta")
+    verifica(Regole.unaTantumFinite([unaVolta], mattine: [], ora: data(19, 12, 1)) == [unaVolta.id],
+             "orario passato senza mattine aperte: sparisce")
+    var chiusaAltroOrario = mattinaDi(unaVolta, esito: .tag)
+    chiusaAltroOrario.orario = data(18, 12, 0)
+    verifica(Regole.unaTantumFinite([unaVolta], mattine: [chiusaAltroOrario], ora: ora).isEmpty,
+             "una mattina chiusa a un altro orario non conta")
+    let ripetuta = Sveglia(nome: "Lavoro", giorni: [2, 3, 4, 5, 6])
+    verifica(Regole.unaTantumFinite([ripetuta], mattine: [], ora: data(30, 0, 0)).isEmpty, "le sveglie ripetute non spariscono")
+}
+
 // MARK: Codice, nomi, frase, profilo
 do {
     let codice = Regole.nuovoCodice()

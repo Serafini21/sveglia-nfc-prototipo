@@ -183,12 +183,9 @@ actor AlarmEngine {
             }
         }
 
-        // 5. Le sveglie una tantum passate senza mattine aperte spariscono
-        let conMattinaAperta = Set(d.mattine.filter { !$0.conclusa }.map(\.svegliaID))
-        d.sveglie.removeAll { s in
-            guard let t = s.dataUnaTantum, t < ora else { return false }
-            return !conMattinaAperta.contains(s.id)
-        }
+        // 5. Le sveglie una tantum finite spariscono (anche quelle annullate in anticipo)
+        let finite = Regole.unaTantumFinite(d.sveglie, mattine: d.mattine, ora: ora)
+        d.sveglie.removeAll { finite.contains($0.id) }
 
         let finali = d
         await Store.shared.modifica { dati in

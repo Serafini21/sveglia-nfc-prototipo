@@ -151,6 +151,16 @@ enum Regole {
 
     static func stessoIstante(_ a: Date, _ b: Date) -> Bool { abs(a.timeIntervalSince(b)) < 1 }
 
+    /// Sveglie una tantum da togliere: la loro mattina è chiusa (anche annullata in anticipo, quindi prima
+    /// dell'orario), oppure l'orario è passato senza mattine aperte.
+    static func unaTantumFinite(_ sveglie: [Sveglia], mattine: [Mattina], ora: Date) -> Set<UUID> {
+        Set(sveglie.filter { s in
+            guard let t = s.dataUnaTantum,
+                  !mattine.contains(where: { !$0.conclusa && $0.svegliaID == s.id }) else { return false }
+            return t < ora || mattine.contains { $0.conclusa && $0.svegliaID == s.id && stessoIstante($0.orario, t) }
+        }.map(\.id))
+    }
+
     static func svegliaBloccata(_ id: UUID, mattine: [Mattina], ora: Date) -> Bool {
         mattine.contains { $0.svegliaID == id && $0.bloccata(ora) }
     }
