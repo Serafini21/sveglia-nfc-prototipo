@@ -4,7 +4,7 @@ App per iPhone (iOS 26.1+): la sveglia si spegne solo avvicinando il telefono a 
 
 - Progetto completo e regole: [`docs/PROGETTO.md`](docs/PROGETTO.md)
 - Cosa abbiamo verificato con il prototipo: [`REPORT_PROTOTIPO.md`](REPORT_PROTOTIPO.md)
-- Checklist dei test della Fase 1: [`TEST_FASE1.md`](TEST_FASE1.md)
+- Checklist dei test: [`TEST_FASE1.md`](TEST_FASE1.md) e [`TEST_FASE2.md`](TEST_FASE2.md)
 - Il prototipo è in [`prototipo/`](prototipo/) come riferimento e non fa parte della build.
 
 ## Build (GitHub Actions)
@@ -48,7 +48,7 @@ Il tag funziona solo a **telefono sbloccato**, e mentre la sveglia suona Face ID
 
 ## Modalità sviluppatore
 
-Tocca 5 volte il titolo «Alba» nella Home. Contiene:
+Tocca 5 volte il titolo «Sveglie» nella Home. Contiene:
 - catena breve configurabile;
 - «mattina di test tra N minuti»;
 - «sveglia tra N giorni» (per il test della scadenza);
