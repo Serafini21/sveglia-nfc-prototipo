@@ -26,7 +26,7 @@ Promemoria delle mattine di test (*Sviluppatore › Mattina tra N min › Progra
 - *Promemoria scadenza: attive* dopo che hai accettato le notifiche;
 - in Comandi Rapidi, cercando «Alba», compare l'azione **Spegni sveglia**.
 
-**Risultato:** ______ **Note:** ____________________
+**Risultato:** ok **Note:** ____________________
 
 ### 2. Mattina completa breve
 **Come:** accendi «Risveglio progressivo» nella Home. In *Sviluppatore* imposta «Mattina tra 4 min» e tocca **Programma la mattina di test**. Blocca il telefono e aspetta senza toccare nulla per circa 2 minuti dopo l'orario. Poi premi Stop, sblocca e usa il tag.
@@ -36,7 +36,7 @@ Promemoria delle mattine di test (*Sviluppatore › Mattina tra N min › Progra
 - poi una sveglia ogni 30 s; dalla 5ª (+2 min), «PUNIZIONE – usa il tag!» con la sirena;
 - dopo il tag: «Sveglia spenta ✓», e aprendo Alba compare «Risveglio riuscito».
 
-**Risultato:** ______ **Note (si sente salire la progressiva? la sirena arriva alla 5ª?):** ____________________
+**Risultato:** ok **Note (si sente salire la progressiva? la sirena arriva alla 5ª?):** si sente progressiva, sirena alla quinta
 
 ### 3. Stop, sblocco, tag entro 60 s: nessuna penalità
 **Come:** spegni la progressiva. Programma una mattina di test tra 2 min a telefono bloccato. Quando suona la principale premi **Stop** (o il tasto laterale), sblocca con Face ID e usa il tag entro 60 s.
@@ -44,7 +44,7 @@ Promemoria delle mattine di test (*Sviluppatore › Mattina tra N min › Progra
 - «Risveglio riuscito» con punteggio **100**;
 - in *Statistiche* l'esito è **Tag**, con «stop 1» e nessuno «penalizzato».
 
-**Risultato:** ______ **Note:** ____________________
+**Risultato:** ok **Note:** ____________________
 
 ### 4. Codice sbagliato o azione lanciata a mano
 **Come:** mentre suona una mattina di test, prova tre casi:
@@ -58,7 +58,7 @@ Promemoria delle mattine di test (*Sviluppatore › Mattina tra N min › Progra
 - nel log «TAG RIFIUTATO … TENTATIVO SOSPETTO».
 
 Alla fine spegni col tag vero.
-**Risultato:** a ______ b ______ c ______ **Note:** ____________________
+**Risultato:** a ok b ok c ok **Note:** ____________________
 
 ### 5. Spegnimento anticipato nelle 2 ore prima
 **Come:** crea una sveglia **normale** (dal + della Home) per tra circa 1 ora, poi usa il tag.
@@ -67,7 +67,7 @@ Alla fine spegni col tag vero.
 - la sveglia una tantum sparisce (una ripetuta passa alla prossima occorrenza);
 - *Statistiche* mostra «Annullata in anticipo» e lo streak sale.
 
-**Risultato:** ______ **Note:** ____________________
+**Risultato:** ok **Note:** ____________________
 
 ### 6. Blocco delle modifiche nelle 2 ore prima
 **Come:** con una sveglia normale entro 2 ore, prova a modificarla, disattivarla e a eliminarla scorrendo verso sinistra.
@@ -77,7 +77,7 @@ Alla fine spegni col tag vero.
 - l'editor mostra il riquadro «Sveglia bloccata» con il pulsante Emergency Stop, e **Salva** è disabilitato;
 - dopo il tag (spegnimento anticipato) la sveglia si sblocca.
 
-**Risultato:** ______ **Note:** ____________________
+**Risultato:** ok **Note:** ____________________
 
 ### 7. Trucco del volume
 **Come:** mattina di test tra 2 min, con il telefono **sbloccato** sulla Home. Quando suona la principale premi un **tasto volume** (non Stop). Aspetta circa 2 minuti e mezzo, poi usa il tag oppure apri Alba.
@@ -86,7 +86,7 @@ Alla fine spegni col tag vero.
 - l'esito è **«Fallita – volume»**, con punteggio 0 e streak a 0;
 - nel log c'è «Fallita – volume» con il numero di sveglie «in corso».
 
-**Risultato:** ______ **Note:** ____________________
+**Risultato:** ok **Note:** aprendo l'app si è disattivata la sveglia
 
 ### 8. Emergency Stop: pulsante della sveglia e app
 Alla prima installazione hai **1 credito**: fai prima la parte **a**, che non lo consuma.
@@ -100,12 +100,12 @@ Alla prima installazione hai **1 credito**: fai prima la parte **a**, che non lo
 - esito **Emergency**, crediti da 1 a 0, streak a 0;
 - in *Impostazioni*, «Prossima ricarica» tra 7 giorni.
 
-**Risultato:** a ______ b ______ **Note:** ____________________
+**Risultato:** a ok b ok **Note:** a: la sveglia si spegne quando si apre l'app,, bisogna sbloccare, si 
 
 ### 9. Due mattine programmate insieme (oltre 61 sveglie)
 **Come:** accendi la progressiva e crea una sveglia normale ripetuta tutti i giorni (oppure due sveglie per domani). Apri *Sviluppatore › Stato*.
 **Atteso:** 2 mattine aperte da 76 sveglie ciascuna («Sveglie in AlarmKit: 152»), **oppure** una mattina «ridotta». Nel log cerca le righe «Riallinea» e «LIMITE AlarmKit»: mandamele. Poi rimetti le sveglie come vuoi.
-**Risultato (quante sveglie accettate?):** ______ **Note:** ____________________
+**Risultato (quante sveglie accettate?):** 152 **Note:** ____________________
 
 ### 10. Notte vera
 **Come:** sveglia normale all'ora reale con la progressiva accesa, telefono bloccato in carica e Full immersion **Riposo** attiva.
@@ -115,17 +115,17 @@ Alla prima installazione hai **1 credito**: fai prima la parte **a**, che non lo
 ### 11. Non disturbare e risparmio energetico
 **Come:** una mattina di test con **Non disturbare** attivo, poi un'altra con **Risparmio energetico** attivo.
 **Atteso:** suona normalmente in entrambi i casi.
-**Risultato:** Non disturbare ______ Risparmio energetico ______ **Note:** ____________________
+**Risultato:** Non disturbare ok Risparmio energetico ok **Note:** ____________________
 
 ### 12. Le sveglie sopravvivono alla reinstallazione?
 **Come:** programma una mattina di test tra 15 minuti e reinstalla subito la stessa `Alba.ipa` con Sideloadly. **Non aprire Alba** e aspetta l'orario.
 **Atteso / da annotare:** suona lo stesso? Dopo, apri Alba: se le sveglie erano sparite compare l'avviso «Mancavano N sveglie…» e nel log «SVEGLIE MANCANTI».
-**Risultato:** ______ **Note:** ____________________
+**Risultato:** sopravvivono **Note:** ____________________
 
 ### 13. Scadenza
 **a. Promemoria.** In *Impostazioni* leggi la data di scadenza.
 **Atteso:** una notifica «Alba scade tra 2 giorni» alle 20:00 di due giorni prima e una «Alba scade domani» alle 20:00 del giorno prima.
-**Risultato:** ______
+**Risultato:** le info ci sono devo aspettare 6 giorni per la notifica pero
 
 **b. Facoltativo, da fare per ultimo.** Subito dopo un'installazione, in *Sviluppatore* scegli «Sveglia tra 8 giorni» e tocca **Programma la sveglia tra 8 giorni**. Poi **non reinstallare** per 8 giorni: l'app scade al 7°.
 **Da annotare:** l'8° giorno la sveglia suona? Stop e tag funzionano? L'app si apre? Poi reinstalla.
@@ -137,5 +137,5 @@ Fallo due volte:
 - con le **Funzioni di rilevamento dell'attenzione** accese (*Impostazioni › Face ID e codice*);
 - poi con quelle funzioni spente.
 
-**Atteso / da annotare:** si sentono 4 gradini sempre più forti? C'è un «respiro» a ogni gradino?
-**Risultato:** acceso ______ spento ______ **Note:** ____________________
+**Atteso / da annotare:** si sentono 4 gradini sempre più forti? si - C'è un «respiro» a ogni gradino? si anche una vibrazione
+**Risultato:** acceso ok spento ok **Note:** ____________________
