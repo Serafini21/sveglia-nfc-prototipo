@@ -25,6 +25,7 @@ final class Lab {
     private var ultimoBattito = Date.distantPast
     private var ultimoMinutoLoggato = -1
     private var avvisatoAudioFermo = false
+    private var appleMusicDaRiprendere = false
 
     private init() {
         let d = UserDefaults.standard
@@ -152,6 +153,7 @@ final class Lab {
         let musica = MPMusicPlayerController.systemMusicPlayer
         if musica.playbackState == .playing {
             musica.pause()
+            appleMusicDaRiprendere = true
             Log.add("LAB Apple Music stava suonando: chiesta la pausa (permesso libreria: \(MPMediaLibrary.authorizationStatus() == .authorized ? "si" : "no"))")
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -185,6 +187,11 @@ final class Lab {
         // notifyOthers: la musica delle altre app può ripartire
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         Log.add("LAB sveglia dell'app FERMATA (\(motivo))")
+        if appleMusicDaRiprendere {
+            appleMusicDaRiprendere = false
+            MPMusicPlayerController.systemMusicPlayer.play()
+            Log.add("LAB Apple Music: chiesta la ripartenza")
+        }
         if guardiano {
             Log.add(preparaAudio() ? "LAB guardiano ripartito in sottofondo" : "LAB guardiano NON ripartito dopo lo stop")
         }

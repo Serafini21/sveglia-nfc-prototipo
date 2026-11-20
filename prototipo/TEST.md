@@ -95,3 +95,8 @@ La partenza della progressiva ora è -60 dB di base (scelta col test P1).
 | M5 | Apple Music | Guardiano ON, Apple Music in riproduzione, "Test: tra 1 minuto", blocca il telefono | Apple Music va in pausa e resta solo la sveglia. Nel log "Apple Music: ferma" | |
 | M6 | Spotify o YouTube | Come M5 ma con Spotify o YouTube | La musica si abbassa molto e la sveglia si sente sopra (la pausa qui non è possibile) | |
 | M7 | La sveglia non si interrompe | Durante M5 e M6 | La sveglia suona senza pause. Nel log **non** deve comparire "audio FERMO" | |
+
+| # | Test | Come | Risultato atteso | Risultato |
+|---|---|---|---|---|
+| M8 | Apple Music riparte | Come M5, poi spegni col tag | Apple Music riprende da dove si era fermata. Nel log "Apple Music: chiesta la ripartenza" | |
+| M9 | Apple Music già in pausa | Sveglia **senza** musica in riproduzione, poi tag | Apple Music **non** parte da sola | |
