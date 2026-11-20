@@ -4,6 +4,7 @@ import SwiftUI
 struct SviluppatoreView: View {
     @EnvironmentObject var stato: StatoApp
     @State private var p = ParametriTest()
+    @State private var confermaAzzera = false
 
     private var aperte: [Mattina] {
         stato.dati.mattine.filter { !$0.conclusa }.sorted { $0.orario < $1.orario }
@@ -12,13 +13,13 @@ struct SviluppatoreView: View {
     var body: some View {
         List {
             Section {
-                Stepper("Progressiva: un gradino ogni \(p.passoProgressivaSec) s", value: $p.passoProgressivaSec, in: 5...60, step: 5)
-                Stepper("Catena: una sveglia ogni \(p.intervalloCatenaSec) s", value: $p.intervalloCatenaSec, in: 10...60, step: 5)
-                Stepper("Durata della catena: \(p.durataCatenaMin) min", value: $p.durataCatenaMin, in: 1...30)
+                Stepper("Progressiva: \(p.passoProgressivaSec * Costanti.gradiniProgressiva) s", value: $p.passoProgressivaSec, in: 2...60, step: 2)
+                Stepper("Sirena: una sveglia ogni \(p.intervalloCatenaSec) s", value: $p.intervalloCatenaSec, in: 10...60, step: 5)
+                Stepper("Durata della sirena: \(p.durataCatenaMin) min", value: $p.durataCatenaMin, in: 1...30)
             } header: {
                 Text("Catena breve (mattine di test)")
             } footer: {
-                Text("La progressiva segue l'interruttore della Home (ora \(stato.dati.impostazioni.progressiva ? "attiva" : "spenta")): 15 gradini prima dell'orario. La sirena parte dalla 5ª sveglia. Le mattine di test non contano nelle statistiche.")
+                Text("La progressiva segue l'interruttore della Home (ora \(stato.dati.impostazioni.progressiva ? "attiva" : "spenta")) e la suona l'app. La sirena AlarmKit parte \(Costanti.ritardoCatenaTest) s dopo l'orario. Le mattine di test non contano nelle statistiche.")
             }
             .listRowBackground(Tema.superficie)
 
@@ -27,9 +28,7 @@ struct SviluppatoreView: View {
                 Button("Programma la mattina di test") { mattinaTest() }
                 Stepper("Sveglia tra \(p.giorniAllaSveglia) giorni", value: $p.giorniAllaSveglia, in: 1...14)
                 Button("Programma la sveglia tra \(p.giorniAllaSveglia) giorni (test scadenza)") { svegliaLontana() }
-                Button("Mini-test progressiva: 4 sveglie a 30 s, +6 dB ciascuna") {
-                    Task { let r = await AlarmEngine.shared.minitestProgressiva(); stato.avvisa(r.messaggio) }
-                }
+                Button("Prova: alza il volume di sistema al massimo") { Guardiano.impostaVolumeSistema(1) }
             }
             .listRowBackground(Tema.superficie)
 
@@ -43,10 +42,19 @@ struct SviluppatoreView: View {
                 Button("Ferma tutte le sveglie e disattivale", role: .destructive) {
                     Task { let r = await AlarmEngine.shared.fermaEDisattivaTutto(); stato.avvisa(r.messaggio) }
                 }
+                Button("Azzera statistiche e storico", role: .destructive) { confermaAzzera = true }
+                    .confirmationDialog("Cancellare tutte le mattine passate? Streak, punteggi e storico ripartono da zero.",
+                                        isPresented: $confermaAzzera, titleVisibility: .visible) {
+                        Button("Azzera", role: .destructive) {
+                            Task { let r = await AlarmEngine.shared.azzeraStatistiche(); stato.avvisa(r.messaggio) }
+                        }
+                    }
             }
             .listRowBackground(Tema.superficie)
 
             Section("Stato") {
+                LabeledContent("Guardiano", value: stato.guardiano ? "attivo" : "spento")
+                LabeledContent("Uscita audio", value: stato.uscitaEsterna ?? "altoparlante")
                 LabeledContent("Sveglie in AlarmKit", value: "\(stato.kit.count)")
                 LabeledContent("Che suonano ora", value: "\(stato.kit.filter { $0.state == .alerting }.count)")
                 ForEach(aperte) { m in
@@ -77,10 +85,11 @@ struct SviluppatoreView: View {
 
     private func parametri(progressiva: Bool) -> ParametriMattina {
         ParametriMattina(progressiva: progressiva, passoProgressivaSec: p.passoProgressivaSec,
-                         intervalloCatenaSec: p.intervalloCatenaSec, durataCatenaMin: p.durataCatenaMin)
+                         intervalloCatenaSec: p.intervalloCatenaSec, durataCatenaMin: p.durataCatenaMin,
+                         ritardoCatenaSec: Costanti.ritardoCatenaTest)
     }
 
-    private func crea(_ nome: String, tra secondi: Double, progressiva: Bool) {
+    private func crea(_ nome: String, tra secondi: Double, progressiva: Bool, vadoALetto: Bool = false) {
         let t = Date(timeIntervalSince1970: (Date().timeIntervalSince1970 + secondi).rounded())
         let c = Calendar.current.dateComponents([.hour, .minute], from: t)
         let s = Sveglia(nome: nome, ora: c.hour ?? 0, minuti: c.minute ?? 0, giorni: [], attiva: true,
@@ -88,11 +97,13 @@ struct SviluppatoreView: View {
         Task {
             let r = await AlarmEngine.shared.salva(s)
             stato.avvisa(r.messaggio)
+            if r.ok && vadoALetto { Guardiano.shared.vadoALetto() }
         }
     }
 
+    /// Come «Vado a letto»: la mattina di test accende subito il guardiano.
     private func mattinaTest() {
-        crea("Test", tra: Double(p.minutiAllaMattina * 60), progressiva: stato.dati.impostazioni.progressiva)
+        crea("Test", tra: Double(p.minutiAllaMattina * 60), progressiva: stato.dati.impostazioni.progressiva, vadoALetto: true)
     }
 
     private func svegliaLontana() {

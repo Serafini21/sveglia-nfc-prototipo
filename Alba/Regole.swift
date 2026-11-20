@@ -4,8 +4,10 @@ import Foundation
 
 /// Tutti i numeri delle regole in un unico punto.
 enum Costanti {
-    static let gradiniProgressiva = 15
-    static let primaPunizione = 5                        // n. della sveglia (principale = 1) da cui suona la sirena
+    static let gradiniProgressiva = 15                   // progressiva = 15 × passoProgressivaSec (15 min)
+    static let dbInizialeProgressiva = -60.0             // partenza della progressiva continua (test P1: -30 dB era troppo forte)
+    static let ritardoCatena = 300                       // la catena AlarmKit di sicurezza parte a T + 5 min
+    static let ritardoCatenaTest = 60                    // mattine di test: T + 1 min
     static let tolleranzaStopTag: TimeInterval = 60      // Stop seguito dal tag entro 60 s: nessuna penalità
     static let finestraPrima: TimeInterval = 2 * 3600    // blocco modifiche e spegnimento anticipato
     static let sogliaVolume: TimeInterval = 120          // sveglie "in corso" più vecchie di così = tasti volume
@@ -39,14 +41,16 @@ enum Costanti {
 }
 
 extension Mattina {
-    /// Prima sveglia della mattina (inizio della progressiva, se programmata).
+    /// Quando l'app inizia a suonare: inizio della progressiva, oppure l'orario.
     var inizio: Date {
         parametri.progressiva
             ? orario.addingTimeInterval(-Double(Costanti.gradiniProgressiva * parametri.passoProgressivaSec))
             : orario
     }
+    /// Prima sveglia AlarmKit (sirena di sicurezza).
+    var inizioCatena: Date { orario.addingTimeInterval(Double(parametri.ritardoCatenaSec ?? 0)) }
     /// Dopo questo istante, senza tag né Emergency, la mattina è fallita.
-    var fine: Date { orario.addingTimeInterval(Double(parametri.durataCatenaMin * 60) + Costanti.margineFine) }
+    var fine: Date { inizioCatena.addingTimeInterval(Double(parametri.durataCatenaMin * 60) + Costanti.margineFine) }
     var conclusa: Bool { esito != nil }
     func inCorso(_ ora: Date) -> Bool { !conclusa && ora >= inizio && ora <= fine }
     func nellaFinestraPrima(_ ora: Date) -> Bool {
@@ -69,41 +73,38 @@ enum Regole {
         var suono: String
     }
 
-    /// Tutte le sveglie di una mattina in ordine di orario: progressiva, principale (n. 1), catena.
-    static func piano(orario t: Date, parametri p: ParametriMattina, suoneria: String) -> [VocePiano] {
-        var voci: [VocePiano] = []
-        if p.progressiva {
-            let n = Costanti.gradiniProgressiva
-            for i in 1...n {
-                let prima = Double((n - i + 1) * p.passoProgressivaSec)
-                voci.append(VocePiano(fase: .progressiva, indice: i, orario: t.addingTimeInterval(-prima),
-                                      suono: Suoni.progressiva(i)))
-            }
-        }
+    /// Le sveglie AlarmKit di una mattina: solo la catena di sicurezza, tutte con la sirena, una ogni
+    /// intervallo da T + ritardo. La suoneria scelta e la progressiva le suona l'app (Guardiano):
+    /// se l'app è stata chiusa resta questa catena.
+    static func piano(orario t: Date, parametri p: ParametriMattina) -> [VocePiano] {
+        let inizio = t.addingTimeInterval(Double(p.ritardoCatenaSec ?? 0))
         let intervallo = max(p.intervalloCatenaSec, 5)
         let totale = max(p.durataCatenaMin, 0) * 60 / intervallo + 1
-        for i in 1...totale {
-            voci.append(VocePiano(fase: i == 1 ? .principale : .catena, indice: i,
-                                  orario: t.addingTimeInterval(Double((i - 1) * intervallo)),
-                                  suono: i >= Costanti.primaPunizione ? Suoni.punizione : suoneria))
+        return (1...totale).map { i in
+            VocePiano(fase: .catena, indice: i, orario: inizio.addingTimeInterval(Double((i - 1) * intervallo)),
+                      suono: Suoni.punizione)
         }
-        return voci
     }
 
-    /// Livelli da provare quando AlarmKit segnala il limite. La prima mattina perde prima la progressiva;
-    /// la seconda passa subito a principale + catena ridotta, poi solo principale.
-    static func riduzioni(_ p: ParametriMattina, prima: Bool) -> [(parametri: ParametriMattina, nota: String?)] {
+    /// Livelli da provare quando AlarmKit segnala il limite: catena intera, catena ridotta, una sola sirena.
+    static func riduzioni(_ p: ParametriMattina) -> [(parametri: ParametriMattina, nota: String?)] {
         var livelli: [(parametri: ParametriMattina, nota: String?)] = [(p, nil)]
         var q = p
-        q.progressiva = false
-        if prima && p.progressiva { livelli.append((q, "senza progressiva")) }
         if p.durataCatenaMin > Costanti.catenaRidottaMin {
             q.durataCatenaMin = Costanti.catenaRidottaMin
-            livelli.append((q, "principale + catena di \(Costanti.catenaRidottaMin) min"))
+            livelli.append((q, "sirena di sicurezza per \(Costanti.catenaRidottaMin) min"))
         }
         q.durataCatenaMin = 0
-        livelli.append((q, "solo sveglia principale"))
+        livelli.append((q, "una sola sirena di sicurezza"))
         return livelli
+    }
+
+    /// Volume della progressiva continua in dB: da dbIniziale all'inizio a 0 dB all'orario, lineare in dB
+    /// (come lo percepisce l'orecchio). Senza progressiva (inizio = orario) subito 0 dB.
+    static func dbProgressiva(ora: Date, inizio: Date, orario: Date) -> Double {
+        let durata = orario.timeIntervalSince(inizio)
+        let p = durata <= 0 ? 1 : min(1, max(0, ora.timeIntervalSince(inizio) / durata))
+        return Costanti.dbInizialeProgressiva * (1 - p)
     }
 
     // MARK: - Quali mattine programmare
@@ -257,6 +258,15 @@ enum Regole {
             let delGiorno = mattine.filter { !$0.test && $0.punteggio != nil && cal.isDate($0.orario, inSameDayAs: giorno) }
             return GiornoPunteggio(giorno: giorno, punteggio: delGiorno.max { $0.orario < $1.orario }?.punteggio)
         }
+    }
+
+    // MARK: - Vado a letto
+
+    /// «Vado a letto» premuto in `letto` è finito: una sveglia successiva alla pressione è chiusa o la sua catena
+    /// è passata (con l'app viva una mattina fallita si chiude solo al riallineamento successivo).
+    /// Le mattine vecchie chiuse dopo la pressione non contano.
+    static func vadoALettoFinito(_ letto: Date, mattine: [Mattina], ora: Date) -> Bool {
+        mattine.contains { $0.orario > letto && ($0.conclusa || $0.fine < ora) }
     }
 
     // MARK: - Vado a dormire ora

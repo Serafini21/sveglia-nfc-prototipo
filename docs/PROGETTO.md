@@ -34,6 +34,7 @@ Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su 
 7. Fino a 61 sveglie `.fixed` si programmano insieme in meno di un secondo e senza errori. Il limite reale non è noto (`maximumLimitReached` va gestito).
 8. Suoni: WAV PCM nel bundle principale, impostati per singola sveglia (`.named`). Un file da 3 minuti suona intero e poi va in loop. Una crescita di volume **dentro** il file non si percepisce.
 9. L'App Intent gira nel processo dell'app ed è eseguibile senza aprirla. Può essere lanciata anche **a mano**, senza tag, da Comandi Rapidi o da Siri.
+10. **Laboratorio (20 novembre 2026, dettagli in `prototipo/PORTING_ALBA.md`)**: senza audio in riproduzione iOS sospende l'app pochi secondi dopo che la lasci. Con un audio a volume zero in loop (`UIBackgroundModes = audio`, nessuna capability a pagamento) l'app resta viva a schermo bloccato e suona puntuale. Mentre suona dall'app, i tasti volume si vedono e il volume di sistema si può rialzare (`MPVolumeView`). Apple Music si mette in pausa, Spotify e YouTube no. **Mai disattivare la sessione audio prima della sveglia**: da background non si riattiva.
 
 ## 4. Architettura
 
@@ -51,20 +52,23 @@ Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su 
   - `EmergenzaIntent`, il pulsante secondario della sveglia che apre l'app sulla schermata Emergency.
 - **`Geofence`**: `CLMonitor` con una `CircularGeographicCondition` per la posizione di casa.
 - **`Scadenza`**: legge `ExpirationDate` da `embedded.mobileprovision` e programma le notifiche locali di promemoria.
+- **`Guardiano`**: dopo «Vado a letto» tiene l'app viva in background fino alla sveglia e la suona dall'app (§5). È guidato dalle mattine dello Store e da un timer di 1 s; «Vado a letto» resta salvato, quindi alla riapertura dell'app riparte da solo. Se l'app è stata chiusa o sospesa lo segnala alla riapertura, e una notifica "a uomo morto" avvisa entro 20 minuti. `PromemoriaLetto`: una notifica **9 ore prima** di ogni sveglia ricorda di premere «Vado a letto» (non arriva se è già stato premuto).
 - **Modalità sviluppatore nascosta** (5 tocchi sul titolo della Home): catena breve, simula tag, log completo con condivisione, pulsanti di test.
 
 ## 5. Struttura di una "mattina"
 
-Ogni occorrenza di una sveglia è una **mattina**, con queste fasi programmate in anticipo come sveglie `.fixed`:
+Ogni occorrenza di una sveglia è una **mattina** (schema deciso col Laboratorio, `prototipo/PORTING_ALBA.md`):
 
-1. **Progressiva** (solo se l'interruttore è attivo): **15 sveglie, una al minuto**, da T−15 min a T−1 min. Ognuna ha lo stesso suono dolce, ma **sempre più forte**: livelli pre-calcolati, da circa −30 dB a 0 dB. A ogni gradino si sente un piccolo "respiro", dovuto alla dissolvenza di iOS: è accettato.
-2. **Sveglia principale** all'orario T, con la suoneria normale scelta.
-3. **Catena anti-trucco**: una sveglia ogni **30 s** per **30 min** dopo T.
-   - Dalla **5ª sveglia della catena** in poi il suono diventa la **suoneria punizione** (sirena). In pratica succede se dopo circa 2 minuti non hai ancora usato il tag.
-   - Titoli: "Sblocca e avvicina al tag" e, dalla 5ª, "PUNIZIONE – usa il tag!".
-4. Passati i 30 minuti senza tag né Emergency, la mattina è **fallita**.
+1. **Sera**: 9 ore prima della sveglia arriva il promemoria. Con il pulsante **«Vado a letto»** (nella scheda della prossima sveglia; lo premono da sole anche "Vado a dormire ora" e la mattina di test) il **guardiano** tiene Alba viva in background fino alla sveglia, con la suoneria in loop a volume zero. Solo di notte, per non consumare batteria di giorno. «Vado a letto» finisce quando si chiude la sveglia (tag, anticipo, Emergency o fallita).
+2. **Progressiva** (solo se l'interruttore è attivo): da T−15 min **l'app** suona la suoneria scelta partendo da **−60 dB** e sale in modo continuo fino a 0 dB all'orario T. Senza progressiva suona subito al massimo all'orario T.
+3. Quando l'app inizia a suonare porta il volume di sistema al 100%, rialza subito il volume se premi i tasti volume e mette in pausa Apple Music, che riparte dopo il tag.
+4. **Catena AlarmKit di sicurezza**, programmata la sera insieme alla mattina: da **T+5 min** una sveglia ogni **30 s** per **30 min**, tutte con la **sirena di punizione** ("PUNIZIONE – usa il tag!"). Non compare nell'interfaccia, se non come "Sirena alle …".
+5. Passati i 30 minuti di sirena senza tag né Emergency, la mattina è **fallita**.
 
-Uno Stop (pulsante o tasto laterale) ferma tutte le sveglie in corso, ma la catena resta programmata e risuona alla sveglia successiva. Gli stop durante la fase progressiva non contano per la sirena né per il punteggio.
+- Il **tag** ferma il suono dell'app e cancella tutta la catena AlarmKit.
+- Se l'app è viva ma nessuno usa il tag entro +5 min, suonano **entrambe**, app e sirena: è voluto. Lo Stop di AlarmKit ferma solo la sirena; la catena resta programmata e risuona alla sveglia successiva.
+- Se l'app è stata chiusa (multitasking, riavvio) o non hai premuto «Vado a letto», niente progressiva: suona solo la catena da +5 min. È un compromesso accettato.
+- Uscita Bluetooth: il suono dell'app esce dalla cassa o dalle cuffie collegate (la catena AlarmKit dall'altoparlante). Non è risolto: la Home lo segnala.
 
 ## 6. Funzionalità e regole
 
@@ -112,7 +116,7 @@ Uno Stop (pulsante o tasto laterale) ferma tutte le sveglie in corso, ma la cate
 - **Posizione sconosciuta** (permesso tolto o localizzazione spenta): si applicano le **regole di casa**.
 
 ### 6.8 Rilevamento dei trucchi
-- **Tasti volume**: se al momento del tag, all'apertura dell'app o al `riallinea()` ci sono sveglie `.alerting` più vecchie di 2 minuti, la mattina è **"fallita – volume"** e lo streak si azzera.
+- **Tasti volume**: mentre suona l'app vengono annullati (il volume torna subito al 100%). Sulla catena AlarmKit invece funzionano ancora: se al momento del tag, all'apertura dell'app o al `riallinea()` ci sono sveglie `.alerting` più vecchie di 2 minuti, la mattina è **"fallita – volume"** e lo streak si azzera.
 - La schermata "Sveglia in corso" mostra: "Non premere i tasti volume".
 - **Intent senza codice**: viene rifiutato e registrato.
 - **Cambio di data o ora**: viene registrato. Si applica la protezione dei crediti.

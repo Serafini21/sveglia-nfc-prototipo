@@ -39,9 +39,10 @@ Il tag funziona solo a **telefono sbloccato**, e mentre la sveglia suona Face ID
 
 ## Come funziona una mattina
 
-- **Progressiva** (interruttore nella Home): 15 sveglie, una al minuto, da 15 minuti prima, con il suono dolce sempre più forte (da −30 a 0 dB).
-- **Principale** all'orario, poi la **catena**: una sveglia ogni 30 s per 30 minuti. Dalla 5ª, cioè dopo circa 2 minuti, suona la **sirena di punizione**.
-- **Stop** (pulsante o tasto laterale) ferma tutto ciò che suona, ma la catena continua: serve il tag. I **tasti volume** non fermano la sveglia: le successive suonano mute e la mattina risulta «fallita – volume».
+- **«Vado a letto»** (nella scheda della prossima sveglia): accende il **guardiano**, che tiene Alba viva in background fino alla sveglia (audio a volume zero). 9 ore prima di ogni sveglia arriva un promemoria per premerlo. **Non chiudere Alba dal multitasking**: se si chiude arriva una notifica.
+- **La sveglia la suona l'app**, con la suoneria scelta. Con la **progressiva** (interruttore nella Home) parte 15 minuti prima a −60 dB e sale fino al massimo all'orario. I tasti volume non funzionano e Apple Music va in pausa.
+- **Sirena di sicurezza**: dall'orario + 5 minuti, una sveglia AlarmKit ogni 30 s per 30 minuti. Suona anche se Alba è stata chiusa o se non hai premuto «Vado a letto».
+- **Stop** sulla sirena ferma solo la sirena, che risuona 30 s dopo: serve il tag. I **tasti volume** sulla sirena la zittiscono ma la mattina risulta «fallita – volume».
 - **Tag** nelle 2 ore prima: la mattina viene annullata in anticipo e conta come riuscita. Nelle stesse 2 ore la sveglia non si può modificare senza tag.
 - **Emergency Stop**: dall'app o dal pulsante **Emergenza** sulla sveglia. Si scrive «Sono sveglio e mi alzo» e si tiene premuto 10 s. Ha 2 crediti al massimo (1 all'inizio, +1 ogni 7 giorni) e azzera lo streak.
 - Alba tiene programmate le **prossime 2 mattine**. Se iOS rifiuta così tante sveglie, la seconda viene ridotta e il log lo segnala.
@@ -52,7 +53,7 @@ Tocca 5 volte il titolo «Sveglie» nella Home. Contiene:
 - catena breve configurabile;
 - «mattina di test tra N minuti»;
 - «sveglia tra N giorni» (per il test della scadenza);
-- mini-test della progressiva;
+- stato del guardiano e uscita audio, prova del volume al massimo;
 - simula tag (solo sulle mattine di test);
 - stato di AlarmKit e log completo.
 

@@ -76,9 +76,24 @@ actor AlarmEngine {
         }
     }
 
+    /// Modalità sviluppatore: cancella lo storico delle mattine chiuse (per ripartire dopo i test).
+    func azzeraStatistiche() async -> Risposta {
+        await inCoda {
+            let n = await Store.shared.modifica { d -> Int in
+                let prima = d.mattine.count
+                let ora = Date()
+                // le mattine future annullate in anticipo restano, altrimenti verrebbero riprogrammate
+                d.mattine.removeAll { $0.conclusa && $0.orario < ora }
+                return prima - d.mattine.count
+            }
+            EventLog.scrivi("SVILUPPATORE: statistiche azzerate, tolte \(n) mattine chiuse")
+            return Risposta(ok: true, messaggio: "Statistiche azzerate (\(n) mattine)")
+        }
+    }
+
     func chiudiAvviso() async { await inCoda { await Store.shared.modifica { $0.avviso = nil } } }
 
-    func minitestProgressiva() async -> Risposta { await inCoda { await self._minitest() } }
+    func mostraAvviso(_ testo: String) async { await inCoda { await Store.shared.modifica { $0.avviso = testo } } }
 
     func fermaEDisattivaTutto() async -> Risposta { await inCoda { await self._fermaTutto() } }
 
@@ -158,7 +173,7 @@ actor AlarmEngine {
         var normaliViste = 0
         for des in desiderate {
             guard let s = d.sveglie.first(where: { $0.id == des.svegliaID }) else { continue }
-            let richiesti = s.test ?? ParametriMattina(progressiva: imp.progressiva)
+            let richiesti = s.test ?? ParametriMattina(progressiva: imp.progressiva, ritardoCatenaSec: Costanti.ritardoCatena)
             let suono = (Suoneria(rawValue: s.suoneria) ?? .normale).file
             let prima = s.test != nil || normaliViste == 0
             if s.test == nil { normaliViste += 1 }
@@ -167,26 +182,26 @@ actor AlarmEngine {
                 let m = d.mattine[i]
                 let future = m.sveglie.filter { $0.orario > ora.addingTimeInterval(5) }
                 let mancanti = future.filter { !presenti.contains($0.id) }
-                let attesiFuturi = Regole.piano(orario: m.orario, parametri: m.parametri, suoneria: m.suoneria)
+                let attesiFuturi = Regole.piano(orario: m.orario, parametri: m.parametri)
                     .filter { $0.orario > ora.addingTimeInterval(5) }.count
                 let cambiata = (m.richiesti != richiesti || m.suoneria != suono) && !m.bloccata(ora)
                 // shortcut: se AlarmKit è sempre al limite questo ritenta a ogni riallineamento; va bene finché il limite reale non è noto
                 let daCompletare = m.ridotta != nil && prima && ora < m.inizio
                 if !mancanti.isEmpty {
                     note.append("SVEGLIE MANCANTI: \(mancanti.count) della mattina \(descr(m)), le riprogrammo")
-                    d.avviso = "Mancavano \(mancanti.count) sveglie della mattina \(Formati.quando(m.orario)). Alba le ha riprogrammate: succede se l'app è stata reinstallata o il permesso Sveglie è stato tolto."
+                    d.avviso = "Alba ha riprogrammato \(mancanti.count) sveglie mancanti di \(Formati.quando(m.orario))."
                 }
                 guard autorizzata, !mancanti.isEmpty || future.count < attesiFuturi || cambiata || daCompletare else { continue }
                 if cambiata {
                     d.mattine[i].suoneria = suono
                     d.mattine[i].nome = s.nome
                 }
-                await ripianifica(&d.mattine[i], richiesti: cambiata ? richiesti : m.richiesti, prima: prima, ora: ora, note: &note)
+                await ripianifica(&d.mattine[i], richiesti: cambiata ? richiesti : m.richiesti, ora: ora, note: &note)
             } else {
                 var m = Mattina(svegliaID: s.id, nome: s.nome, orario: des.orario, richiesti: richiesti,
                                 parametri: richiesti, suoneria: suono, test: s.test != nil)
                 if autorizzata {
-                    await ripianifica(&m, richiesti: richiesti, prima: prima, ora: ora, note: &note)
+                    await ripianifica(&m, richiesti: richiesti, ora: ora, note: &note)
                 } else {
                     note.append("PERMESSO SVEGLIE MANCANTE: mattina \(descr(m)) non programmata")
                 }
@@ -209,18 +224,19 @@ actor AlarmEngine {
             dati.impostazioni.ultimaDataVista = imp.ultimaDataVista
         }
         let aperte = finali.mattine.filter { !$0.conclusa }.count
-        let riga = "Riallinea (\(motivo)): \(sveglieKit().count) sveglie in AlarmKit, \(aperte) mattine aperte"
+        let promemoria = await PromemoriaLetto.sincronizza(finali.mattine, ora: ora)
+        let riga = "Riallinea (\(motivo)): \(sveglieKit().count) sveglie in AlarmKit, \(aperte) mattine aperte, \(promemoria)"
         EventLog.scrivi(([riga] + note).joined(separator: "\n    "))
     }
 
     /// Toglie le sveglie future della mattina e la riprogramma, riducendola se AlarmKit segnala il limite.
-    private func ripianifica(_ m: inout Mattina, richiesti: ParametriMattina, prima: Bool, ora: Date, note: inout [String]) async {
+    private func ripianifica(_ m: inout Mattina, richiesti: ParametriMattina, ora: Date, note: inout [String]) async {
         let soglia = ora.addingTimeInterval(2)
         togli(Set(m.sveglie.filter { $0.orario > soglia }.map(\.id)), sveglieKit())
         m.sveglie.removeAll { $0.orario > soglia }
         m.richiesti = richiesti
-        for livello in Regole.riduzioni(richiesti, prima: prima) {
-            let voci = Regole.piano(orario: m.orario, parametri: livello.parametri, suoneria: m.suoneria).filter { $0.orario > soglia }
+        for livello in Regole.riduzioni(richiesti) {
+            let voci = Regole.piano(orario: m.orario, parametri: livello.parametri).filter { $0.orario > soglia }
             var fatte: [SvegliaProgrammata] = []
             do {
                 for v in voci {
@@ -241,7 +257,7 @@ actor AlarmEngine {
                 note.append("LIMITE AlarmKit dopo \(fatte.count) sveglie della mattina \(descr(m)) (ne servivano \(voci.count))")
             }
         }
-        note.append("Mattina \(descr(m)): impossibile programmare anche solo la sveglia principale")
+        note.append("Mattina \(descr(m)): impossibile programmare anche una sola sirena di sicurezza")
     }
 
     // MARK: - Stop, tag, Emergency
@@ -395,27 +411,6 @@ actor AlarmEngine {
     }
 
     // MARK: - Modalità sviluppatore
-
-    /// 4 sveglie a 30 s, livelli 6, 9, 12, 15 del suono dolce: ognuna circa 6,4 dB più forte della precedente.
-    private func _minitest() async -> Risposta {
-        let inizio = Date().addingTimeInterval(60)
-        var nuove: [SvegliaProgrammata] = []
-        for (k, livello) in [6, 9, 12, 15].enumerated() {
-            let v = Regole.VocePiano(fase: .test, indice: k + 1, orario: inizio.addingTimeInterval(Double(k) * 30),
-                                     suono: Suoni.progressiva(livello))
-            do {
-                let id = try await programma(v)
-                nuove.append(SvegliaProgrammata(id: id, fase: v.fase, indice: v.indice, orario: v.orario, suono: v.suono))
-            } catch {
-                EventLog.scrivi("ERRORE mini-test: \(error)")
-                break
-            }
-        }
-        let programmate = nuove
-        await Store.shared.modifica { $0.sveglieTest += programmate }
-        EventLog.scrivi("MINI-TEST PROGRESSIVA: \(programmate.count) sveglie ogni 30 s dalle \(EventLog.data(inizio)), livelli 6-9-12-15 (+6,4 dB ciascuna)")
-        return Risposta(ok: !programmate.isEmpty, messaggio: "Mini-test: \(programmate.count) sveglie dalle \(Formati.ora(inizio, secondi: true))")
-    }
 
     private func _fermaTutto() async -> Risposta {
         let kit = sveglieKit()

@@ -1,8 +1,8 @@
 """Genera i suoni di Alba (WAV PCM 16 bit mono, 22.050 Hz) usando solo la libreria standard.
 
 File brevi: AlarmKit li ripete in loop finche' la sveglia non viene fermata (verificato col prototipo),
-cosi' l'IPA resta leggera. La progressiva usa lo stesso suono dolce in 15 livelli pre-calcolati,
-da circa -30 dB (livello 1) a 0 dB (livello 15).
+cosi' l'IPA resta leggera. La progressiva la fa l'app alzando il volume del player (Guardiano),
+quindi non servono file a volumi diversi.
 
 Uso: python genera_suoni.py <cartella_destinazione>
 """
@@ -14,12 +14,6 @@ import wave
 
 RATE = 22050  # basta per suonerie, dimezza il peso rispetto a 44.1 kHz
 PICCO = 0.95  # margine per non saturare
-LIVELLI = 15
-
-
-def db_livello(i):
-    """dB del livello i (1..15) della progressiva: da -30 a 0 a passi di circa 2,14 dB."""
-    return -30.0 + (i - 1) * 30.0 / (LIVELLI - 1)
 
 
 def scrivi(path, campioni, guadagno=1.0):
@@ -152,12 +146,6 @@ def punizione(secondi=4.2):
     return normalizza(out)
 
 
-def picco(path):
-    with wave.open(path) as w:
-        dati = w.readframes(w.getnframes())
-    return max(abs(v[0]) for v in struct.iter_unpack("<h", dati))
-
-
 if __name__ == "__main__":
     dest = sys.argv[1] if len(sys.argv) > 1 else "Sounds"
     os.makedirs(dest, exist_ok=True)
@@ -169,11 +157,7 @@ if __name__ == "__main__":
     for nome, campioni in suoni.items():
         scrivi(os.path.join(dest, nome), campioni)
 
-    base = suoni["dolce.wav"]
-    for i in range(1, LIVELLI + 1):
-        scrivi(os.path.join(dest, f"dolce_{i:02d}.wav"), base, 10 ** (db_livello(i) / 20))
-
-    # Auto-verifica: formato, durata, livelli crescenti e rapporto tra il primo e l'ultimo (30 dB)
+    # Auto-verifica: formato e durata
     totale = 0
     for nome in sorted(os.listdir(dest)):
         path = os.path.join(dest, nome)
@@ -181,9 +165,5 @@ if __name__ == "__main__":
             assert w.getframerate() == RATE and w.getnchannels() == 1 and w.getsampwidth() == 2, nome
             assert 2.9 < w.getnframes() / RATE < 6.1, nome
         totale += os.path.getsize(path)
-    picchi = [picco(os.path.join(dest, f"dolce_{i:02d}.wav")) for i in range(1, LIVELLI + 1)]
-    assert all(a < b for a, b in zip(picchi, picchi[1:])), picchi
-    rapporto_db = 20 * math.log10(picchi[-1] / picchi[0])
-    assert abs(rapporto_db - 30) < 0.5, rapporto_db
-    print(f"{len(os.listdir(dest))} suoni, {totale // 1024} KB in tutto; progressiva da {db_livello(1):.0f} a {db_livello(LIVELLI):.0f} dB "
-          f"(misurati {rapporto_db:.1f} dB di differenza)")
+    assert len(os.listdir(dest)) == len(suoni), os.listdir(dest)
+    print(f"{len(os.listdir(dest))} suoni, {totale // 1024} KB in tutto")

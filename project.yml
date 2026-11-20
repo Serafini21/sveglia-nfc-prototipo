@@ -25,10 +25,13 @@ targets:
         UIUserInterfaceStyle: Dark
         UIAppFonts: [SpaceGrotesk.ttf, Inter.ttf]
         NSAlarmKitUsageDescription: "Alba usa le sveglie di sistema per suonare all'orario scelto, anche con il telefono bloccato o in silenzioso."
+        NSAppleMusicUsageDescription: "Alba mette in pausa Apple Music quando suona la sveglia e la fa ripartire quando la spegni."
+        UIBackgroundModes: [audio] # guardiano: chiave di Info.plist, nessuna capability a pagamento (va bene col Personal Team)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.svegliatag.alba # definitivo: non cambiarlo mai (cancellerebbe i dati)
         CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon # Alba/Assets.xcassets, generata da scripts/genera_icona.py
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO

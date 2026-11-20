@@ -12,7 +12,8 @@ final class Anteprima {
             return
         }
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            // stessa sessione del Guardiano: mixWithOthers, altrimenti sulla schermata di blocco comparirebbe la pausa
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
             player?.stop()
             player = try AVAudioPlayer(contentsOf: url)
@@ -25,6 +26,9 @@ final class Anteprima {
     func ferma() {
         player?.stop()
         player = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // mai col guardiano acceso: la sessione disattivata da background non si riattiva (trappola 1)
+        if !Guardiano.shared.attivo {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 }

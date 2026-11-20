@@ -70,8 +70,9 @@ struct ModificaSvegliaView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             EtichettaSezione(testo: "Ripeti")
                             SelettoreGiorni(giorni: $s.giorni)
-                            Text(s.giorni.isEmpty ? "Nessun giorno: suona una volta sola, poi sparisce." : "Suona nei giorni evidenziati.")
-                                .font(.inter(12)).foregroundStyle(Tema.testo2)
+                            if s.giorni.isEmpty {
+                                Text("Una volta sola").font(.inter(12)).foregroundStyle(Tema.testo2)
+                            }
                         }
 
                         VStack(spacing: 0) {
@@ -79,7 +80,7 @@ struct ModificaSvegliaView: View {
                                 riga("Suoneria", valore: suoneria.nome, colore: Tema.testo2)
                             }
                             Divider().overlay(Tema.bordo)
-                            riga("Suoneria punizione", sotto: "Dalla 5ª sveglia della catena, circa 2 min dopo", valore: "Sirena",
+                            riga("Suoneria punizione", sotto: "Dopo \(Costanti.ritardoCatena / 60) min senza tag", valore: "Sirena",
                                  colore: Tema.pericolo, freccia: false)
                         }
                         .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -88,7 +89,7 @@ struct ModificaSvegliaView: View {
 
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "lock").foregroundStyle(Tema.ambra)
-                        Text("Nelle 2 ore prima della sveglia non potrai modificarla, disattivarla o eliminarla senza il tag. Si spegne solo col tag, senza snooze.")
+                        Text("Nelle 2 ore prima servirà il tag per modificarla. Niente snooze.")
                             .font(.inter(13)).foregroundStyle(Tema.testoChiaro)
                     }
                     .scheda(Tema.notte, raggio: 16)
@@ -129,7 +130,7 @@ struct ModificaSvegliaView: View {
     private var avvisoBloccata: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Sveglia bloccata", systemImage: "lock.fill").font(.inter(16, .semibold)).foregroundStyle(Tema.ambra)
-            Text("Suona entro 2 ore. Per modificarla avvicina il tag: la mattina viene annullata in anticipo (conta come riuscita) e la sveglia si sblocca. In alternativa usa l'Emergency Stop.")
+            Text("Suona entro 2 ore: usa il tag (la annulla in anticipo) o l'Emergency Stop.")
                 .font(.inter(14)).foregroundStyle(Tema.testo)
             Button("Emergency Stop") {
                 chiudi()
@@ -243,7 +244,7 @@ struct SceltaSuoneria: View {
                 Button("Ascolta la sirena di punizione") { Anteprima.shared.suona(Suoni.punizione) }
                     .font(.inter(15)).foregroundStyle(Tema.pericolo)
             } footer: {
-                Text("Tocca una suoneria per sceglierla e ascoltarla. La sirena è fissa: parte dalla 5ª sveglia della catena.")
+                Text("Tocca per scegliere e ascoltare.")
             }
             .listRowBackground(Tema.superficie)
         }

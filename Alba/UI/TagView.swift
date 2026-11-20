@@ -36,22 +36,24 @@ struct TagView: View {
                             }
                     }
                     if !stato.dati.tag.isEmpty {
-                        Text("Qualsiasi tag registrato spegne le sveglie. Scorri a sinistra per eliminarne uno.")
+                        Text("Qualsiasi tag registrato spegne le sveglie.")
                             .font(.inter(13)).foregroundStyle(Tema.testo2)
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
                         EtichettaSezione(testo: "Codice segreto")
                         CodiceSegreto()
-                        Text("Va scritto in ogni automazione NFC. Senza il codice giusto Alba rifiuta lo spegnimento e lo registra come tentativo sospetto.")
+                        Text("Da inserire in ogni automazione NFC.")
                             .font(.inter(13)).foregroundStyle(Tema.testo2)
                     }
                     .scheda()
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        EtichettaSezione(testo: "Come funziona")
-                        Text("iOS legge il tag con un'automazione di Comandi Rapidi, che esegue l'azione «Spegni sveglia» di Alba. L'automazione parte solo a telefono sbloccato e, mentre la sveglia suona, Face ID non sblocca: premi Stop, sblocca e avvicina il tag entro 60 secondi. Così non hai nessuna penalità.")
+                    DisclosureGroup {
+                        Text("Comandi Rapidi legge il tag e lancia «Spegni sveglia». Serve il telefono sbloccato: premi Stop, sblocca e avvicina il tag entro 60 s, senza penalità.")
                             .font(.inter(14)).foregroundStyle(Tema.testoChiaro)
+                            .padding(.top, 6)
+                    } label: {
+                        Text("Come funziona").font(.inter(15, .semibold)).foregroundStyle(Tema.testo)
                     }
                     .scheda()
                 }
@@ -162,7 +164,7 @@ struct GuidaTagView: View {
                     } header: {
                         Text("1 · Dai un nome al tag")
                     } footer: {
-                        Text("Il nome serve a riconoscere il tag nell'app e nel log. Lo scriverai uguale nell'automazione.")
+                        Text("Lo scriverai uguale nell'automazione.")
                     }
                     Section {
                         Button("Avanti") { registra() }
@@ -283,13 +285,13 @@ struct ProvaContenuto: View {
                 .foregroundStyle(Tema.testo)
             if !riuscita {
                 ProgressView()
-                Text("Se compare «Codice segreto mancante o sbagliato» o «non è registrato», correggi nome e codice nell'azione. Se non compare nulla, controlla che l'automazione sia attiva e su «Esegui immediatamente».")
+                Text("Non funziona? Controlla nome e codice nell'azione e «Esegui immediatamente».")
                     .font(.footnote)
                     .foregroundStyle(Tema.testo2)
                     .multilineTextAlignment(.center)
             }
             if let m = stato.prossima, m.nellaFinestraPrima(Date()) || m.inCorso(Date()) {
-                Text("Attenzione: la sveglia «\(m.nome)» è entro 2 ore. Questa prova la spegne (spegnimento anticipato).")
+                Text("Attenzione: la prova annulla «\(m.nome)», che è entro 2 ore.")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Tema.pericolo)
                     .multilineTextAlignment(.center)

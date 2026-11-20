@@ -11,9 +11,9 @@ struct ImpostazioniView: View {
 
     private var scadenza: String {
         guard let s = stato.scadenza else { return "Scadenza sconosciuta" }
-        if s < Date() { return "Scaduta: reinstallala con Sideloadly" }
+        if s < Date() { return "Scaduta: reinstallala" }
         let giorni = Int((s.timeIntervalSinceNow / 86400).rounded(.up))
-        return "L'app scade tra \(giorni) \(giorni == 1 ? "giorno" : "giorni") (\(Formati.quando(s)))"
+        return "Scade tra \(giorni) \(giorni == 1 ? "giorno" : "giorni") · \(Formati.giornoBreve(s))"
     }
 
     private var testoNotifiche: String {
@@ -71,14 +71,14 @@ struct ImpostazioniView: View {
                 } header: {
                     Text("Emergency Stop")
                 } footer: {
-                    Text("1 credito ogni 7 giorni, al massimo 2. Si usa tenendo premuto 10 secondi e scrivendo la frase. Azzera lo streak.")
+                    Text("+1 ogni 7 giorni, massimo 2.")
                 }
                 .listRowBackground(Tema.superficie)
 
                 Section {
+                    LabeledContent("Sirena senza tag", value: "dopo \(Costanti.ritardoCatena / 60) min")
                     LabeledContent("Risuona dopo uno stop", value: "\(ParametriMattina(progressiva: false).intervalloCatenaSec) s")
-                    LabeledContent("Durata della catena", value: "\(ParametriMattina(progressiva: false).durataCatenaMin) min")
-                    LabeledContent("Sirena dalla sveglia n°", value: "\(Costanti.primaPunizione)")
+                    LabeledContent("Durata della sirena", value: "\(ParametriMattina(progressiva: false).durataCatenaMin) min")
                     LabeledContent("Blocco modifiche", value: "\(Int(Costanti.finestraPrima / 3600)) h prima")
                     LabeledContent("Tolleranza Stop → tag", value: "\(Int(Costanti.tolleranzaStopTag)) s")
                 } header: {
@@ -90,8 +90,6 @@ struct ImpostazioniView: View {
                     NavigationLink { RoutineEditor() } label: {
                         LabeledContent("Routine del mattino", value: "\(stato.dati.routine.count) voci")
                     }
-                } footer: {
-                    Text("La checklist compare nella schermata «Buongiorno!» dopo il tag.")
                 }
                 .listRowBackground(Tema.superficie)
 

@@ -37,8 +37,17 @@ enum Schermata: Identifiable, Hashable {
 final class StatoApp: ObservableObject {
     static let shared = StatoApp()
 
-    @Published var dati = DatiAlba() { didSet { aggiornaSchermata() } }
+    @Published var dati = DatiAlba() {
+        didSet {
+            aggiornaSchermata()
+            // solo con l'interfaccia caricata: un intent che avvia l'app in background non accende l'audio
+            if caricato { Guardiano.shared.aggiorna(dati.mattine) }
+        }
+    }
     @Published var caricato = false
+    /// Scritti dal Guardiano.
+    @Published var guardiano = false
+    @Published var uscitaEsterna: String?
     @Published var kit: [Alarm] = []
     @Published var autorizzazione = AlarmEngine.shared.autorizzazione
     @Published var schermata: Schermata?
@@ -59,11 +68,16 @@ final class StatoApp: ObservableObject {
         avviato = true
         dati = await Store.shared.leggi()
         caricato = true
-        let font = ["Space Grotesk", "Inter"].map { "\($0) \(UIFont.familyNames.contains($0) ? "ok" : "ASSENTE")" }
-        EventLog.scrivi("Font: " + font.joined(separator: ", "))
+        let font = ["Space Grotesk", "Inter"].map { famiglia -> String in
+            let nomi = UIFont.fontNames(forFamilyName: famiglia)
+            return "\(famiglia) \(nomi.isEmpty ? "ASSENTE" : "ok [\(nomi.joined(separator: ", "))]")"
+        }
+        EventLog.scrivi("Font: " + font.joined(separator: "; "))
+        Guardiano.shared.aggiorna(dati.mattine)
         if autorizzazione == .notDetermined {
             autorizzazione = await AlarmEngine.shared.chiediAutorizzazione()
         }
+        await Guardiano.chiediPermessoMusica()
         await attiva()
         if let s = Scadenza.leggi() {
             scadenza = s
@@ -131,6 +145,7 @@ struct Radice: View {
             Tab("Impostazioni", systemImage: "gearshape", value: 3) { ImpostazioniView() }
         }
         .overlay(alignment: .top) { Avviso(testo: stato.messaggio) }
+        .background(CursoreVolume().frame(width: 1, height: 1))
         .fullScreenCover(item: $stato.schermata) { s in
             Group {
                 switch s {

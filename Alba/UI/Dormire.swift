@@ -54,9 +54,6 @@ struct DormireView: View {
                 InterruttoreProgressiva(sottotitolo: "Come l'ultima volta")
                     .padding(.horizontal, 4)
 
-                Text("Suona una volta sola, poi sparisce. Segue tutte le regole: catena, sirena, tag.")
-                    .font(.inter(13)).foregroundStyle(Tema.testo3)
-
                 Button(salvo ? "Imposto…" : "Imposta sveglia alle \(Formati.ora(orario))") { salva() }
                     .buttonStyle(PulsantePrincipale())
                     .disabled(salvo)
@@ -77,6 +74,8 @@ struct DormireView: View {
                 Text(Formati.ora(o.orario))
                     .font(.grotesk(28))
                     .foregroundStyle(scelto ? Tema.ambra : Tema.testo)
+                    .lineLimit(1)
+                    .fixedSize()
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(o.cicli) cicli · \(Formati.ore(o.durata))")
@@ -106,7 +105,10 @@ struct DormireView: View {
             let r = await AlarmEngine.shared.salva(s)
             salvo = false
             stato.avvisa(r.messaggio)
-            if r.ok { chiudi() }
+            if r.ok {
+                Guardiano.shared.vadoALetto() // si va a dormire adesso: guardiano acceso fino alla sveglia
+                chiudi()
+            }
         }
     }
 }

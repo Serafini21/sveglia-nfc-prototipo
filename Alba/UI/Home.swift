@@ -177,16 +177,43 @@ struct ProssimaScheda: View {
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            // l'orario non va mai a capo: semmai va a capo il testo accanto
                             Text(Formati.ora(m.orario))
                                 .font(.grotesk(56))
                                 .tracking(-1)
                                 .foregroundStyle(Tema.testo)
+                                .lineLimit(1)
+                                .fixedSize()
                             Text(Formati.traQuanto(m.orario, da: ctx.date))
                                 .font(.inter(15)).foregroundStyle(Tema.testo2)
+                                .lineLimit(2)
                         }
                         Text("\(m.nome) · \(Formati.quando(m.orario))")
                             .font(.inter(14)).foregroundStyle(Tema.testo2)
                         progressiva
+                        if stato.guardiano {
+                            HStack(spacing: 8) {
+                                Label("Guardiano attivo: lascia Alba aperta", systemImage: "moon.zzz")
+                                    .font(.inter(13)).foregroundStyle(Tema.testoChiaro)
+                                Spacer()
+                                Button("Spegni") { Guardiano.shared.annullaVadoALetto() }
+                                    .buttonStyle(.plain) // in una riga di List: solo questo bottone reagisce al tocco
+                                    .font(.inter(13, .semibold)).foregroundStyle(Tema.ambra)
+                                    .frame(minHeight: 44)
+                            }
+                            if let uscita = stato.uscitaEsterna {
+                                Label("Audio su «\(uscita)»: la sveglia suonerà lì", systemImage: "hifispeaker")
+                                    .font(.inter(13)).foregroundStyle(Tema.pericolo)
+                            }
+                        } else {
+                            Button {
+                                Guardiano.shared.vadoALetto()
+                                stato.avvisa("Buonanotte! Lascia Alba aperta in background.")
+                            } label: {
+                                Label("Vado a letto", systemImage: "bed.double")
+                            }
+                            .buttonStyle(PulsanteSecondario())
+                        }
                         HStack(spacing: 8) {
                             Label(m.bloccata(ctx.date) ? "Bloccata: serve il tag"
                                   : "Bloccata dalle \(Formati.ora(m.inizio.addingTimeInterval(-Costanti.finestraPrima)))",
@@ -198,7 +225,7 @@ struct ProssimaScheda: View {
                             if m.test { Pastiglia(testo: "TEST") }
                         }
                         if let r = m.ridotta {
-                            Label("Programmata ridotta (\(r)): limite di sveglie di iOS", systemImage: "exclamationmark.triangle")
+                            Label("Ridotta: \(r)", systemImage: "exclamationmark.triangle")
                                 .font(.inter(13)).foregroundStyle(Tema.pericolo)
                         }
                     }
@@ -229,10 +256,7 @@ struct InterruttoreProgressiva: View {
         Toggle(isOn: Binding(get: { stato.dati.impostazioni.progressiva }, set: { cambia($0) })) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Sveglia progressiva 15 min").font(.inter(15, .semibold)).foregroundStyle(Tema.testo)
-                Text(sottotitolo ?? (stato.dati.impostazioni.progressiva
-                                     ? "Suono dolce sempre più forte nei 15 minuti prima"
-                                     : "Disattivata: la sveglia parte all'improvviso"))
-                    .font(.inter(12)).foregroundStyle(Tema.testo2)
+                if let sottotitolo { Text(sottotitolo).font(.inter(12)).foregroundStyle(Tema.testo2) }
             }
         }
         .tint(Tema.ambra)
@@ -252,11 +276,11 @@ struct AvvisiHome: View {
 
     var body: some View {
         if stato.autorizzazione == .notDetermined {
-            avviso("Alba non ha ancora il permesso di usare le sveglie.", pulsante: "Concedi") {
+            avviso("Serve il permesso Sveglie.", pulsante: "Concedi") {
                 Task { stato.autorizzazione = await AlarmEngine.shared.chiediAutorizzazione(); await stato.attiva() }
             }
         } else if stato.autorizzazione != .authorized {
-            avviso("Permesso Sveglie negato: Alba non può suonare. Riattivalo in Impostazioni › Alba.", pulsante: "Apri Impostazioni") {
+            avviso("Permesso Sveglie negato: Alba non può suonare.", pulsante: "Apri Impostazioni") {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             }
         }
@@ -264,12 +288,10 @@ struct AvvisiHome: View {
             avviso(testo, pulsante: "OK") { Task { await AlarmEngine.shared.chiudiAvviso() } }
         }
         if let s = stato.scadenza, s.timeIntervalSinceNow < 2 * 86400 {
-            avviso(s < Date() ? "Alba è scaduta: reinstallala con Sideloadly."
-                              : "Alba scade \(Formati.quando(s)): reinstallala con Sideloadly.", pulsante: nil) {}
+            avviso(s < Date() ? "Alba è scaduta: reinstallala." : "Alba scade \(Formati.quando(s)): reinstallala.", pulsante: nil) {}
         }
         if stato.caricato && stato.dati.tag.isEmpty {
-            avviso("Nessun tag registrato: la sveglia si potrà spegnere solo con l'Emergency Stop. Aggiungine uno nella scheda Tag.",
-                   pulsante: nil) {}
+            avviso("Nessun tag: aggiungine uno nella scheda Tag.", pulsante: nil) {}
         }
     }
 

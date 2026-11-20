@@ -47,8 +47,7 @@ struct SvegliaInCorsoView: View {
 
                     if let m { sirena(m) }
 
-                    Label("Non premere i tasti volume: la sveglia non si ferma, le successive suonano mute e la mattina risulta fallita.",
-                          systemImage: "speaker.slash")
+                    Label("Non usare i tasti volume: la mattina risulterebbe fallita.", systemImage: "speaker.slash")
                         .font(.inter(13)).foregroundStyle(Tema.pericolo)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .scheda(Tema.mattinoSuperficie, raggio: 16, margine: 14)
@@ -81,14 +80,14 @@ struct SvegliaInCorsoView: View {
         }
     }
 
-    /// Quattro segmenti che si riempiono fino alla sirena (5ª sveglia della catena).
+    /// Quattro segmenti che si riempiono dall'orario fino alla sirena di sicurezza (T+5 min).
     private func sirena(_ m: Mattina) -> some View {
         let stop = m.eventi.filter { ($0.tipo == .stop || $0.tipo == .pulsanteEmergenza) && $0.fase != .progressiva }.count
-        let passo = Double(m.parametri.intervalloCatenaSec)
-        let oraSirena = m.orario.addingTimeInterval(Double(Costanti.primaPunizione - 1) * passo)
+        let oraSirena = m.inizioCatena
+        let quarto = max(1, oraSirena.timeIntervalSince(m.orario) / 4)
         return TimelineView(.periodic(from: .now, by: 1)) { ctx in
             let trascorso = ctx.date.timeIntervalSince(m.orario)
-            let pieni = trascorso < 0 ? 0 : min(4, Int(trascorso / passo) + 1)
+            let pieni = trascorso < 0 ? 0 : min(4, Int(trascorso / quarto) + 1)
             let attiva = ctx.date >= oraSirena
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
@@ -282,7 +281,7 @@ struct RisveglioView: View {
                             }
                         }
                         if routine.isEmpty {
-                            Text("Aggiungi le cose da fare appena sveglio: acqua, finestre, doccia…")
+                            Text("Acqua, finestre, doccia… aggiungi le tue voci.")
                                 .font(.inter(14)).foregroundStyle(Tema.testo2)
                         } else {
                             VStack(spacing: 0) {

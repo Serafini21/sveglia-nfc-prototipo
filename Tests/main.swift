@@ -20,7 +20,7 @@ func data(_ g: Int, _ h: Int, _ m: Int, _ s: Int = 0) -> Date {
 let T = data(19, 7, 0) // giovedì 19 novembre 2026, 7:00
 
 func mattina(progressiva: Bool = false, eventi: [EventoMattina] = []) -> Mattina {
-    let p = ParametriMattina(progressiva: progressiva)
+    let p = ParametriMattina(progressiva: progressiva, ritardoCatenaSec: Costanti.ritardoCatena)
     return Mattina(svegliaID: UUID(), nome: "Test", orario: T, richiesti: p, parametri: p,
                    suoneria: Suoneria.normale.file, eventi: eventi)
 }
@@ -30,27 +30,55 @@ func stop(_ secondiDaT: Double, fase: Fase = .catena) -> EventoMattina {
 
 // MARK: Piano della mattina
 do {
-    let senza = Regole.piano(orario: T, parametri: ParametriMattina(progressiva: false), suoneria: "normale.wav")
-    verifica(senza.count == 61, "senza progressiva: principale + 60 di catena = 61 sveglie")
-    verifica(senza[0].fase == .principale && senza[0].orario == T, "la prima è la principale alle T")
-    verifica(senza[3].suono == "normale.wav", "la 4ª suona normale")
-    verifica(senza[4].suono == Suoni.punizione && senza[4].orario == T.addingTimeInterval(120), "la 5ª è la sirena, a T+2 min")
-    verifica(senza.last!.orario == T.addingTimeInterval(1800), "l'ultima è a T+30 min")
+    let p = ParametriMattina(progressiva: true, ritardoCatenaSec: Costanti.ritardoCatena)
+    let piano = Regole.piano(orario: T, parametri: p)
+    verifica(piano.count == 61, "catena di sicurezza: 61 sveglie (30 min, una ogni 30 s); la progressiva non usa AlarmKit")
+    verifica(piano[0].orario == T.addingTimeInterval(300) && piano[0].fase == .catena, "la prima sirena è a T+5 min")
+    verifica(piano.allSatisfy { $0.suono == Suoni.punizione }, "tutte con la sirena di punizione")
+    verifica(piano.last!.orario == T.addingTimeInterval(300 + 1800), "l'ultima è a T+35 min")
+    verifica(zip(piano, piano.dropFirst()).allSatisfy { $1.orario.timeIntervalSince($0.orario) == 30 }, "una ogni 30 s")
+    verifica(Regole.piano(orario: T, parametri: ParametriMattina(progressiva: false))[0].orario == T,
+             "mattina programmata senza guardiano (ritardo nil): catena dall'orario")
 
-    let con = Regole.piano(orario: T, parametri: ParametriMattina(progressiva: true), suoneria: "normale.wav")
-    verifica(con.count == 76, "con progressiva: 15 + 61 = 76 sveglie")
-    verifica(con[0].orario == T.addingTimeInterval(-900) && con[0].suono == "dolce_01.wav", "progressiva da T-15 min, livello 1")
-    verifica(con[14].orario == T.addingTimeInterval(-60) && con[14].suono == "dolce_15.wav", "ultimo gradino a T-1 min, livello 15")
-    verifica(zip(con, con.dropFirst()).allSatisfy { $0.orario < $1.orario }, "orari crescenti")
+    let rid = Regole.riduzioni(p)
+    verifica(rid.count == 3 && rid[1].parametri.durataCatenaMin == 10 && rid[2].parametri.durataCatenaMin == 0,
+             "riduzioni: catena intera, 10 min, una sola sirena")
+    verifica(rid.allSatisfy { $0.parametri.progressiva }, "le riduzioni non tolgono la progressiva (non usa AlarmKit)")
+    verifica(Regole.piano(orario: T, parametri: rid[2].parametri).count == 1, "una sola sirena = 1 sveglia")
+}
 
-    let rid1 = Regole.riduzioni(ParametriMattina(progressiva: true), prima: true)
-    verifica(rid1.count == 4 && rid1[1].nota == "senza progressiva" && rid1[3].parametri.durataCatenaMin == 0,
-             "riduzioni prima mattina: piena, senza progressiva, catena 10 min, solo principale")
-    let rid2 = Regole.riduzioni(ParametriMattina(progressiva: true), prima: false)
-    verifica(rid2.count == 3 && rid2[1].parametri.durataCatenaMin == 10 && !rid2[1].parametri.progressiva,
-             "riduzioni seconda mattina: piena, principale + catena ridotta, solo principale")
-    let soloPrincipale = Regole.piano(orario: T, parametri: rid2[2].parametri, suoneria: "normale.wav")
-    verifica(soloPrincipale.count == 1, "solo principale = 1 sveglia")
+// MARK: Progressiva continua dell'app
+do {
+    let inizio = T.addingTimeInterval(-900)
+    verifica(Regole.dbProgressiva(ora: inizio, inizio: inizio, orario: T) == -60, "parte da -60 dB")
+    verifica(Regole.dbProgressiva(ora: T.addingTimeInterval(-450), inizio: inizio, orario: T) == -30, "a metà -30 dB")
+    verifica(Regole.dbProgressiva(ora: T, inizio: inizio, orario: T) == 0, "all'orario 0 dB")
+    verifica(Regole.dbProgressiva(ora: T.addingTimeInterval(600), inizio: inizio, orario: T) == 0, "dopo l'orario resta a 0 dB")
+    verifica(Regole.dbProgressiva(ora: inizio.addingTimeInterval(-5), inizio: inizio, orario: T) == -60, "prima dell'inizio -60 dB")
+    verifica(Regole.dbProgressiva(ora: T, inizio: T, orario: T) == 0, "senza progressiva subito al massimo")
+}
+
+// MARK: Vado a letto
+do {
+    let letto = data(18, 23, 0)
+    var ieri = mattina()
+    ieri.orario = data(18, 7, 0)
+    ieri.esito = .fallita // chiusa adesso dal riallineamento: è precedente, non conta
+    verifica(!Regole.vadoALettoFinito(letto, mattine: [ieri, mattina()], ora: data(19, 6, 0)), "di notte: ancora attivo")
+    var conTag = mattina()
+    conTag.esito = .tag
+    verifica(Regole.vadoALettoFinito(letto, mattine: [conTag], ora: data(19, 7, 1)), "tag: finito")
+    verifica(Regole.vadoALettoFinito(letto, mattine: [mattina()], ora: data(19, 7, 37)), "catena passata senza chiusura: finito")
+    verifica(!Regole.vadoALettoFinito(letto, mattine: [mattina()], ora: data(19, 7, 20)), "sveglia in corso: ancora attivo")
+}
+
+// MARK: Dati delle build precedenti
+do {
+    let vecchi = Data(#"{"progressiva":true,"passoProgressivaSec":60,"intervalloCatenaSec":30,"durataCatenaMin":30}"#.utf8)
+    let p = try? JSONDecoder().decode(ParametriMattina.self, from: vecchi)
+    verifica(p != nil && p?.ritardoCatenaSec == nil, "i parametri salvati senza ritardo si leggono ancora (ritardo nil)")
+    verifica(p != ParametriMattina(progressiva: true, ritardoCatenaSec: Costanti.ritardoCatena),
+             "diversi dai nuovi: le mattine vecchie non bloccate vengono riprogrammate")
 }
 
 // MARK: Finestre: in corso, 2 ore prima, blocco
@@ -59,7 +87,10 @@ do {
     verifica(!m.bloccata(data(19, 4, 59)), "4:59 non bloccata")
     verifica(m.bloccata(data(19, 5, 0)) && m.nellaFinestraPrima(data(19, 5, 0)), "5:00 bloccata e nella finestra di anticipo")
     verifica(m.inCorso(data(19, 7, 20)) && !m.nellaFinestraPrima(data(19, 7, 20)), "7:20 in corso")
-    verifica(m.inCorso(data(19, 7, 31, 0)) && !m.inCorso(data(19, 7, 31, 1)), "fine = T + 30 min + 60 s")
+    verifica(m.inCorso(data(19, 7, 36, 0)) && !m.inCorso(data(19, 7, 36, 1)), "fine = T + 5 min + 30 min + 60 s")
+    var vecchia = m
+    vecchia.parametri.ritardoCatenaSec = nil
+    verifica(vecchia.inCorso(data(19, 7, 31, 0)) && !vecchia.inCorso(data(19, 7, 31, 1)), "mattina vecchia: fine = T + 30 min + 60 s")
     let p = mattina(progressiva: true)
     verifica(p.inCorso(data(19, 6, 45)) && p.nellaFinestraPrima(data(19, 6, 44)), "con progressiva la mattina inizia a T-15")
     var chiusa = m

@@ -1,4 +1,6 @@
+import CoreText
 import SwiftUI
+import UIKit
 
 /// Stile "Alba" del mockup approvato (PROGETTO.md §7).
 enum Tema {
@@ -38,13 +40,38 @@ extension Color {
 }
 
 extension Font {
-    /// Space Grotesk, per orari e titoli. Se il font non è nel bundle iOS usa quello di sistema.
-    static func grotesk(_ size: CGFloat, _ peso: Font.Weight = .semibold) -> Font {
-        .custom("Space Grotesk", size: size).weight(peso)
-    }
+    /// Space Grotesk, per orari e titoli.
+    static func grotesk(_ size: CGFloat, _ peso: Font.Weight = .semibold) -> Font { famiglia("Space Grotesk", size, peso) }
     /// Inter, per il testo.
-    static func inter(_ size: CGFloat, _ peso: Font.Weight = .regular) -> Font {
-        .custom("Inter", size: size).weight(peso)
+    static func inter(_ size: CGFloat, _ peso: Font.Weight = .regular) -> Font { famiglia("Inter", size, peso) }
+
+    private static let famiglieNelBundle = Set(UIFont.familyNames)
+
+    /// I file sono font variabili: si chiede a iOS la famiglia col peso voluto e lui sceglie l'istanza più vicina,
+    /// invece di affidarsi a Font.custom col nome della famiglia. Senza il font si usa quello di sistema.
+    private static func famiglia(_ nome: String, _ size: CGFloat, _ peso: Font.Weight) -> Font {
+        guard famiglieNelBundle.contains(nome) else { return .system(size: size, weight: peso) }
+        let descrittore = UIFontDescriptor(fontAttributes: [
+            .family: nome,
+            .traits: [UIFontDescriptor.TraitKey.weight: peso.perUIKit],
+        ])
+        return Font(UIFontMetrics.default.scaledFont(for: UIFont(descriptor: descrittore, size: size)) as CTFont)
+    }
+}
+
+private extension Font.Weight {
+    var perUIKit: UIFont.Weight {
+        switch self {
+        case .ultraLight: .ultraLight
+        case .thin: .thin
+        case .light: .light
+        case .medium: .medium
+        case .semibold: .semibold
+        case .bold: .bold
+        case .heavy: .heavy
+        case .black: .black
+        default: .regular
+        }
     }
 }
 

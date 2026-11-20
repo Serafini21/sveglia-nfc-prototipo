@@ -87,8 +87,6 @@ enum Suoneria: String, Codable, CaseIterable, Identifiable {
 
 enum Suoni {
     static let punizione = "punizione.wav"
-    /// Suono dolce a volume crescente: livello 1 (circa -30 dB) ... 15 (0 dB).
-    static func progressiva(_ livello: Int) -> String { String(format: "dolce_%02d.wav", livello) }
 }
 
 struct TagNFC: Codable, Equatable, Identifiable {
@@ -105,9 +103,13 @@ struct VoceRoutine: Codable, Equatable, Identifiable {
 
 struct ParametriMattina: Codable, Equatable {
     var progressiva: Bool
+    /// La progressiva (suonata dall'app) dura Costanti.gradiniProgressiva × passo: 15 min.
     var passoProgressivaSec = 60
     var intervalloCatenaSec = 30
     var durataCatenaMin = 30
+    /// Dopo quanti secondi dall'orario parte la catena AlarmKit di sicurezza.
+    /// nil = mattina programmata da una build senza guardiano (fino alla 8): catena dall'orario.
+    var ritardoCatenaSec: Int?
 }
 
 enum Fase: String, Codable {
@@ -158,7 +160,7 @@ enum Esito: String, Codable {
     var inPausa: Bool { self == .fuoriCasa }
 }
 
-/// Ogni occorrenza di una sveglia: progressiva (facoltativa), principale e catena anti-trucco.
+/// Ogni occorrenza di una sveglia: suono dell'app (con progressiva facoltativa) e catena AlarmKit di sicurezza.
 struct Mattina: Codable, Equatable, Identifiable {
     var id = UUID()
     var svegliaID: UUID
