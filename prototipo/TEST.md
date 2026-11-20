@@ -61,3 +61,13 @@ Nel log tutte le righe del Laboratorio iniziano con `LAB`. La riga "LAB SVEGLIA 
 | L13 | **Notte intera** | La sera: guardiano ON, sveglia all'orario vero, progressiva 15 min, telefono in carica e bloccato | Suona al mattino. Nel log trovi "guardiano vivo" ogni 10 minuti per tutta la notte. Se manca un tratto, lì l'app è stata chiusa | |
 | L14 | Chiusura forzata | Guardiano ON, poi chiudi l'app scorrendola via dal multitasking e riaprila | Nel log "app riaperta dopo una CHIUSURA … ultimo segno di vita alle …". La sveglia dell'app **non** suona più (limite noto) | |
 | L15 | Batteria | Dopo la notte del test L13 | Annota quanta batteria ha consumato il guardiano: il log riporta la batteria ogni 10 minuti | |
+
+## Giro 4: musica
+
+Quando la sveglia dell'app parte, l'app ora prende l'audio "in esclusiva": la musica delle altre app dovrebbe andare in pausa. Dopo lo spegnimento col tag la musica può ripartire, e il guardiano torna in sottofondo.
+
+| # | Test | Come | Risultato atteso | Risultato |
+|---|---|---|---|---|
+| M1 | Musica, schermo bloccato | Guardiano ON, Spotify/YouTube in riproduzione, "Test: tra 1 minuto", blocca il telefono | La musica si mette in pausa e suona solo la sveglia. Nel log c'è "musica di altre app: ferma", oppure "piano B" seguito dall'esito | |
+| M2 | Comandi sulla schermata di blocco | Durante M1 guarda la schermata di blocco | Annota: compare un riquadro di riproduzione con il tasto pausa? Se sì, premilo: la sveglia deve ripartire entro 1 s (nel log "audio FERMO" e poi "ripartito") | |
+| M3 | Dopo il tag | Spegni col tag o con "Ferma" | Nel log "guardiano ripartito in sottofondo". Annota se la musica riparte da sola | |

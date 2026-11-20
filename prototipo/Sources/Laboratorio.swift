@@ -133,9 +133,32 @@ final class Lab {
         ultimoMinutoLoggato = -1
         volumeApp = 0
         preparaAudio()
+        prendiAudioEsclusivo()
         if bloccaVolume { Lab.impostaVolumeSistema(1) }
         Log.add("LAB SVEGLIA SUONA (ritardo \(Int(ritardo)) s, uscita: \(Lab.uscita()), volume di sistema \(Lab.pct(AVAudioSession.sharedInstance().outputVolume)))")
         aggiornaVolume()
+    }
+
+    /// Toglie mixWithOthers: iOS mette in pausa la musica delle altre app e resta solo la sveglia.
+    /// Lo facciamo senza fermare il nostro audio, perché da background non si potrebbe ripartire.
+    private func prendiAudioEsclusivo() {
+        let s = AVAudioSession.sharedInstance()
+        do {
+            try s.setCategory(.playback, options: [])
+            try s.setActive(true)
+        } catch { Log.add("LAB ERRORE audio esclusivo: \(error)") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard s.isOtherAudioPlaying else { Log.add("LAB musica di altre app: ferma"); return }
+            // piano B: riattivare la sessione da capo interrompe le altre app
+            Log.add("LAB musica di altre app ANCORA attiva: provo il piano B")
+            self?.player?.pause()
+            try? s.setActive(false)
+            do { try s.setActive(true) } catch { Log.add("LAB piano B fallito: \(error)") }
+            self?.player?.play()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                Log.add("LAB dopo il piano B, musica di altre app: \(s.isOtherAudioPlaying ? "ANCORA attiva" : "ferma")")
+            }
+        }
     }
 
     /// Progressiva continua: da -30 dB a 0 dB, lineare in dB (come la percepisce l'orecchio).
@@ -154,13 +177,19 @@ final class Lab {
 
     func ferma(motivo: String) {
         guard suona || orario != nil else { return }
-        suona = false
         orario = nil
+        guard suona else { Log.add("LAB sveglia dell'app annullata (\(motivo))"); return }
+        suona = false
         inizioSuono = nil
         volumeApp = 0
-        player?.volume = 0
-        if !guardiano { player?.stop(); player = nil }
+        player?.stop()
+        player = nil
+        // notifyOthers: la musica delle altre app può ripartire
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         Log.add("LAB sveglia dell'app FERMATA (\(motivo))")
+        if guardiano {
+            Log.add(preparaAudio() ? "LAB guardiano ripartito in sottofondo" : "LAB guardiano NON ripartito dopo lo stop")
+        }
     }
 
     // MARK: volume
