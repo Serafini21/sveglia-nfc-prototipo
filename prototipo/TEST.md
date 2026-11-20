@@ -80,3 +80,18 @@ Dal log del test L10: la progressiva partiva da -30 dB, cioè il 3% del volume, 
 |---|---|---|---|---|
 | P1 | Scegliere la partenza | Progressiva "1 minuto", prova -60, -50 e -40 dB, ognuna con "Test: tra 1 minuto" | Annota quale partenza è "appena udibile ma c'è" da sveglio, nella stanza silenziosa | |
 | P2 | Progressiva 15 min con la partenza scelta | Come L10, con la partenza scelta in P1 | Il primo minuto è un sussurro, poi la salita è continua fino al massimo | |
+
+## Giro 6: musica, secondo tentativo
+
+Risultato del giro 4: iOS **vieta** a un'app in background di interrompere la musica delle altre (errore 560557684, "cannotInterruptOthers"). Il piano B ci lasciava muti finché l'app non tornava in primo piano, quindi l'ho tolto. Ora l'app usa le due strade permesse:
+- **abbassa** la musica delle altre app (ducking, come fanno i navigatori);
+- **mette in pausa Apple Music** direttamente, se le dai il permesso.
+
+La partenza della progressiva ora è -60 dB di base (scelta col test P1).
+
+| # | Test | Come | Risultato atteso | Risultato |
+|---|---|---|---|---|
+| M4 | Permesso | Nel Laboratorio tocca "Permesso Apple Music" e consenti | Nel log "permesso Apple Music: concesso" | |
+| M5 | Apple Music | Guardiano ON, Apple Music in riproduzione, "Test: tra 1 minuto", blocca il telefono | Apple Music va in pausa e resta solo la sveglia. Nel log "Apple Music: ferma" | |
+| M6 | Spotify o YouTube | Come M5 ma con Spotify o YouTube | La musica si abbassa molto e la sveglia si sente sopra (la pausa qui non è possibile) | |
+| M7 | La sveglia non si interrompe | Durante M5 e M6 | La sveglia suona senza pause. Nel log **non** deve comparire "audio FERMO" | |

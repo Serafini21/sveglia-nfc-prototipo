@@ -15,7 +15,7 @@ final class Lab {
     var volumeApp: Float = 0
     var bloccaVolume = true
     var durataProgressiva = 15 // minuti, 0 = subito al massimo
-    var dbIniziale = -50.0 // partenza della progressiva rispetto al massimo (-30 era troppo forte)
+    var dbIniziale = -60.0 // partenza della progressiva: scelta col test P1 (-30 era troppo forte)
     var suono = "dolce.wav"
 
     private var player: AVAudioPlayer?
@@ -134,31 +134,28 @@ final class Lab {
         ultimoMinutoLoggato = -1
         volumeApp = 0
         preparaAudio()
-        prendiAudioEsclusivo()
+        zittisciAltreApp()
         if bloccaVolume { Lab.impostaVolumeSistema(1) }
         Log.add("LAB SVEGLIA SUONA (ritardo \(Int(ritardo)) s, uscita: \(Lab.uscita()), volume di sistema \(Lab.pct(AVAudioSession.sharedInstance().outputVolume)))")
         aggiornaVolume()
     }
 
-    /// Toglie mixWithOthers: iOS mette in pausa la musica delle altre app e resta solo la sveglia.
-    /// Lo facciamo senza fermare il nostro audio, perché da background non si potrebbe ripartire.
-    private func prendiAudioEsclusivo() {
+    /// Da background iOS vieta di interrompere le altre app (errore 560557684 "cannotInterruptOthers",
+    /// e disattivare la sessione ci lascia muti finché l'app non torna in primo piano).
+    /// Strade permesse: abbassare le altre app (duckOthers, come i navigatori) e mettere in pausa Apple Music.
+    private func zittisciAltreApp() {
         let s = AVAudioSession.sharedInstance()
         do {
-            try s.setCategory(.playback, options: [])
+            try s.setCategory(.playback, options: [.mixWithOthers, .duckOthers])
             try s.setActive(true)
-        } catch { Log.add("LAB ERRORE audio esclusivo: \(error)") }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            guard s.isOtherAudioPlaying else { Log.add("LAB musica di altre app: ferma"); return }
-            // piano B: riattivare la sessione da capo interrompe le altre app
-            Log.add("LAB musica di altre app ANCORA attiva: provo il piano B")
-            self?.player?.pause()
-            try? s.setActive(false)
-            do { try s.setActive(true) } catch { Log.add("LAB piano B fallito: \(error)") }
-            self?.player?.play()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                Log.add("LAB dopo il piano B, musica di altre app: \(s.isOtherAudioPlaying ? "ANCORA attiva" : "ferma")")
-            }
+        } catch { Log.add("LAB ERRORE abbassamento altre app: \(error)") }
+        let musica = MPMusicPlayerController.systemMusicPlayer
+        if musica.playbackState == .playing {
+            musica.pause()
+            Log.add("LAB Apple Music stava suonando: chiesta la pausa (permesso libreria: \(MPMediaLibrary.authorizationStatus() == .authorized ? "si" : "no"))")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            Log.add("LAB musica di altre app: \(s.isOtherAudioPlaying ? "ancora attiva (dovrebbe essere abbassata)" : "ferma"), Apple Music: \(musica.playbackState == .playing ? "ANCORA in riproduzione" : "ferma")")
         }
     }
 
@@ -283,6 +280,9 @@ struct LabView: View {
                 Section {
                     Button("Ferma (simula tag)") { _ = Catena.spegniConTag(nomeTag: "laboratorio") }
                     Button("Prova: alza volume di sistema al massimo") { Lab.impostaVolumeSistema(1) }
+                    Button("Permesso Apple Music (per metterla in pausa)") {
+                        MPMediaLibrary.requestAuthorization { stato in Log.add("LAB permesso Apple Music: \(stato == .authorized ? "concesso" : "negato")") }
+                    }
                 }
             }
             .navigationTitle("Laboratorio")

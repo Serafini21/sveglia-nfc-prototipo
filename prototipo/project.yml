@@ -14,9 +14,10 @@ targets:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: Sveglia NFC
-        CFBundleShortVersionString: "0.2"
+        CFBundleShortVersionString: "0.3"
         CFBundleVersion: "1"
         UILaunchScreen: {}
+        NSAppleMusicUsageDescription: "Serve per mettere in pausa Apple Music quando suona la sveglia."
         UIBackgroundModes: [audio] # guardiano del Laboratorio: chiave di Info.plist, nessuna capability a pagamento
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSAlarmKitUsageDescription: "Serve per far suonare la sveglia all'orario scelto, anche con il telefono bloccato o in silenzioso."
