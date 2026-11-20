@@ -71,3 +71,12 @@ Quando la sveglia dell'app parte, l'app ora prende l'audio "in esclusiva": la mu
 | M1 | Musica, schermo bloccato | Guardiano ON, Spotify/YouTube in riproduzione, "Test: tra 1 minuto", blocca il telefono | La musica si mette in pausa e suona solo la sveglia. Nel log c'è "musica di altre app: ferma", oppure "piano B" seguito dall'esito | |
 | M2 | Comandi sulla schermata di blocco | Durante M1 guarda la schermata di blocco | Annota: compare un riquadro di riproduzione con il tasto pausa? Se sì, premilo: la sveglia deve ripartire entro 1 s (nel log "audio FERMO" e poi "ripartito") | |
 | M3 | Dopo il tag | Spegni col tag o con "Ferma" | Nel log "guardiano ripartito in sottofondo". Annota se la musica riparte da sola | |
+
+## Giro 5: taratura della progressiva
+
+Dal log del test L10: la progressiva partiva da -30 dB, cioè il 3% del volume, ma con il volume di sistema portato al 100%, ed era troppo forte. Ora la partenza si sceglie con "Partenza progressiva" (predefinita -50 dB). Nel log ogni minuto il volume dell'app è scritto in dB.
+
+| # | Test | Come | Risultato atteso | Risultato |
+|---|---|---|---|---|
+| P1 | Scegliere la partenza | Progressiva "1 minuto", prova -60, -50 e -40 dB, ognuna con "Test: tra 1 minuto" | Annota quale partenza è "appena udibile ma c'è" da sveglio, nella stanza silenziosa | |
+| P2 | Progressiva 15 min con la partenza scelta | Come L10, con la partenza scelta in P1 | Il primo minuto è un sussurro, poi la salita è continua fino al massimo | |

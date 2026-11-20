@@ -15,6 +15,7 @@ final class Lab {
     var volumeApp: Float = 0
     var bloccaVolume = true
     var durataProgressiva = 15 // minuti, 0 = subito al massimo
+    var dbIniziale = -50.0 // partenza della progressiva rispetto al massimo (-30 era troppo forte)
     var suono = "dolce.wav"
 
     private var player: AVAudioPlayer?
@@ -107,7 +108,7 @@ final class Lab {
     func imposta(_ data: Date) {
         orario = data
         avviaTimer()
-        Log.add("LAB sveglia dell'app impostata alle \(data.formatted(date: .omitted, time: .standard)) (guardiano: \(guardiano ? "ON" : "OFF"), progressiva: \(durataProgressiva) min, suono: \(suono))")
+        Log.add("LAB sveglia dell'app impostata alle \(data.formatted(date: .omitted, time: .standard)) (guardiano: \(guardiano ? "ON" : "OFF"), progressiva: \(durataProgressiva) min da \(Int(dbIniziale)) dB, suono: \(suono))")
     }
 
     private func tick() {
@@ -161,17 +162,17 @@ final class Lab {
         }
     }
 
-    /// Progressiva continua: da -30 dB a 0 dB, lineare in dB (come la percepisce l'orecchio).
+    /// Progressiva continua: da dbIniziale a 0 dB, lineare in dB (come la percepisce l'orecchio).
     private func aggiornaVolume() {
         guard let i = inizioSuono else { return }
         let secondi = Date().timeIntervalSince(i)
         let p = durataProgressiva == 0 ? 1 : min(1, secondi / Double(durataProgressiva * 60))
-        volumeApp = Float(pow(10, (-30 + 30 * p) / 20))
+        volumeApp = Float(pow(10, dbIniziale * (1 - p) / 20))
         player?.volume = volumeApp
         let minuto = Int(secondi / 60)
         if minuto != ultimoMinutoLoggato {
             ultimoMinutoLoggato = minuto
-            Log.add("LAB minuto \(minuto): volume app \(Lab.pct(volumeApp)), sistema \(Lab.pct(AVAudioSession.sharedInstance().outputVolume))")
+            Log.add("LAB minuto \(minuto): volume app \(Int(dbIniziale * (1 - p))) dB, sistema \(Lab.pct(AVAudioSession.sharedInstance().outputVolume))")
         }
     }
 
@@ -258,6 +259,12 @@ struct LabView: View {
                         Text("1 minuto").tag(1)
                         Text("5 minuti").tag(5)
                         Text("15 minuti").tag(15)
+                    }
+                    Picker("Partenza progressiva", selection: $lab.dbIniziale) {
+                        Text("-30 dB (forte)").tag(-30.0)
+                        Text("-40 dB").tag(-40.0)
+                        Text("-50 dB").tag(-50.0)
+                        Text("-60 dB (sussurro)").tag(-60.0)
                     }
                     Picker("Suono", selection: $lab.suono) {
                         Text("Dolce").tag("dolce.wav")
