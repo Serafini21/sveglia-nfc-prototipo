@@ -32,9 +32,9 @@ struct DatiSveglia: AlarmMetadata {
 
 enum Catena {
     static let manager = AlarmManager.shared
-    static let suonoNormale = "suoneria_normale.wav"
-    static let suonoPunizione = "suoneria_punizione.wav"
-    static let suonoLungo = "test_lungo_3min.wav"
+    // file generati da scripts/genera_suoni.py (gli stessi di Alba)
+    static let suonoNormale = "normale.wav"
+    static let suonoPunizione = "punizione.wav"
     static let primaPunizione = 5 // dalla 5ª sveglia in poi
 
     /// Programma subito la sveglia principale e tutte quelle di riserva.
@@ -120,7 +120,14 @@ enum Catena {
     static func spegniConTag(nomeTag: String?) -> Int {
         let inCorso = ((try? manager.alarms) ?? []).filter { $0.state == .alerting }.count
         Log.add("SPEGNIMENTO COL TAG \"\(nomeTag ?? "-")\" (sveglie in corso: \(inCorso))")
+        DispatchQueue.main.async { Lab.shared.ferma(motivo: "tag \"\(nomeTag ?? "-")\"") }
         return cancellaTutto(motivo: "tag")
+    }
+
+    /// Prossima occorrenza dell'orario scelto (oggi se nel futuro, altrimenti domani).
+    static func prossima(_ d: Date) -> Date {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+        return Calendar.current.nextDate(after: .now, matching: c, matchingPolicy: .nextTime) ?? d
     }
 
     static func data(di alarm: Alarm) -> Date? {

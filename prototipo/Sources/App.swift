@@ -3,14 +3,22 @@ import SwiftUI
 
 @main
 struct SvegliaNFCApp: App {
-    init() { Log.add("Avvio app") }
+    @Environment(\.scenePhase) private var fase
+
+    init() {
+        Log.add("Avvio app")
+        _ = Lab.shared // registra subito se il guardiano era attivo prima della chiusura
+    }
 
     var body: some Scene {
         WindowGroup {
             TabView {
+                Tab("Laboratorio", systemImage: "speaker.wave.3") { LabView() }
                 Tab("Sveglia", systemImage: "alarm") { SvegliaView() }
                 Tab("Log", systemImage: "doc.text") { LogView() }
             }
+            .background(CursoreVolume().frame(width: 1, height: 1).opacity(0.01))
+            .onChange(of: fase) { _, nuova in Log.add("App: \(nuova == .active ? "in primo piano" : nuova == .background ? "in background" : "inattiva")") }
         }
     }
 }
@@ -42,11 +50,8 @@ struct SvegliaView: View {
 
                 Section("Sveglia") {
                     DatePicker("Orario", selection: $orario, displayedComponents: .hourAndMinute)
-                    Button("Imposta sveglia") { programma(prossima(orario)) }
+                    Button("Imposta sveglia") { programma(Catena.prossima(orario)) }
                     Button("Test: sveglia tra 1 minuto") { programma(.now.addingTimeInterval(60)) }
-                    Button("Test suono lungo (3 min) tra 1 minuto") {
-                        Task { await Catena.programmaSingola(data: .now.addingTimeInterval(60), suono: Catena.suonoLungo); aggiorna() }
-                    }
                 }
 
                 Section("Catena") {
@@ -94,12 +99,6 @@ struct SvegliaView: View {
     private func aggiorna() {
         sveglie = (try? AlarmManager.shared.alarms) ?? []
         stopSenzaTag = UserDefaults.standard.integer(forKey: "stopSenzaTag")
-    }
-
-    /// Prossima occorrenza dell'orario scelto (oggi se nel futuro, altrimenti domani).
-    private func prossima(_ d: Date) -> Date {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
-        return Calendar.current.nextDate(after: .now, matching: c, matchingPolicy: .nextTime) ?? d
     }
 
     private func testo(_ s: AlarmManager.AuthorizationState) -> String {
