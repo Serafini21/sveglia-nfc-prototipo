@@ -41,7 +41,7 @@ final class StatoApp: ObservableObject {
         didSet {
             aggiornaSchermata()
             // solo con l'interfaccia caricata: un intent che avvia l'app in background non accende l'audio
-            if caricato { Guardiano.shared.aggiorna(dati.mattine) }
+            if caricato { Guardiano.shared.aggiorna(dati) }
         }
     }
     @Published var caricato = false
@@ -73,7 +73,7 @@ final class StatoApp: ObservableObject {
             return "\(famiglia) \(nomi.isEmpty ? "ASSENTE" : "ok [\(nomi.joined(separator: ", "))]")"
         }
         EventLog.scrivi("Font: " + font.joined(separator: "; "))
-        Guardiano.shared.aggiorna(dati.mattine)
+        Guardiano.shared.aggiorna(dati)
         if autorizzazione == .notDetermined {
             autorizzazione = await AlarmEngine.shared.chiediAutorizzazione()
         }

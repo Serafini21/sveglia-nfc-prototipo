@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -24,6 +25,12 @@ struct ImpostazioniView: View {
         case .notDetermined: "non ancora richieste"
         default: "…"
         }
+    }
+
+    private var testoCasa: String {
+        let imp = stato.dati.impostazioni
+        if let c = imp.casa, c.dal > Date() { return "nuova dal \(Formati.giornoBreve(c.dal)) \(Formati.ora(c.dal))" }
+        return imp.casa == nil ? "non impostata" : "impostata"
     }
 
     private var testoSveglie: String {
@@ -71,7 +78,18 @@ struct ImpostazioniView: View {
                 } header: {
                     Text("Emergency Stop")
                 } footer: {
-                    Text("+1 ogni 7 giorni, massimo 2.")
+                    Text("Uno alla volta: si ricarica 7 giorni dopo averlo usato.")
+                }
+                .listRowBackground(Tema.superficie)
+
+                Section {
+                    NavigationLink { ImpostaCasaView() } label: {
+                        LabeledContent("Casa", value: testoCasa)
+                    }
+                } header: {
+                    Text("Posizione di casa")
+                } footer: {
+                    Text("Fuori casa (oltre \(Int(Costanti.raggioCasa)) m) l'Emergency Stop non usa il credito.")
                 }
                 .listRowBackground(Tema.superficie)
 
@@ -212,5 +230,59 @@ struct LogView: View {
         }
         voci = Array(elenco.suffix(2000).reversed())
         file = EventLog.fileDaCondividere()
+    }
+}
+
+/// Salva la posizione attuale come casa. Vale dopo 12 ore: fino ad allora resta quella di prima.
+struct ImpostaCasaView: View {
+    @EnvironmentObject var stato: StatoApp
+    @Environment(\.dismiss) private var chiudi
+    @State private var posizione: CLLocation?
+    @State private var negata = false
+
+    /// Precisione minima per salvare: con ± 100 m la casa sarebbe troppo incerta.
+    private var precisa: Bool { (posizione?.horizontalAccuracy ?? .infinity) <= 100 }
+
+    var body: some View {
+        List {
+            Section {
+                if let p = posizione {
+                    LabeledContent("Precisione", value: "± \(Int(p.horizontalAccuracy)) m")
+                    if !precisa {
+                        Text("Aspetta qualche secondo, meglio vicino a una finestra.").font(.inter(13)).foregroundStyle(Tema.testo2)
+                    }
+                } else {
+                    Text(negata ? "Permesso posizione negato: attivalo in Impostazioni › Alba › Posizione."
+                                : "Cerco la posizione…")
+                        .font(.inter(14)).foregroundStyle(Tema.testo2)
+                }
+                Button("Salva questa posizione come casa") { salva() }
+                    .disabled(!precisa)
+            } footer: {
+                Text("Fallo da casa. La nuova posizione vale dopo 12 ore: fino ad allora resta quella di prima.")
+            }
+            .listRowBackground(Tema.superficie)
+        }
+        .stileAlba()
+        .navigationTitle("Posizione di casa")
+        .task {
+            await Posizione.segui { p, n in
+                if let p { posizione = p }
+                negata = n
+            }
+        }
+    }
+
+    private func salva() {
+        guard let p = posizione else { return }
+        let ora = Date(), lat = p.coordinate.latitude, lon = p.coordinate.longitude
+        Task {
+            await Store.shared.modifica { Regole.impostaCasa(&$0.impostazioni, latitudine: lat, longitudine: lon, ora: ora) }
+            let dal = ora.addingTimeInterval(Costanti.attesaCasa)
+            // senza coordinate nel log: il log si condivide
+            EventLog.scrivi("POSIZIONE DI CASA impostata (± \(Int(p.horizontalAccuracy)) m), vale dal \(EventLog.data(dal))")
+            stato.avvisa("Casa salvata: vale dal \(Formati.giornoBreve(dal)) alle \(Formati.ora(dal))")
+            chiudi()
+        }
     }
 }

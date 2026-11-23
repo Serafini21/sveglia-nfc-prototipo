@@ -26,6 +26,7 @@ targets:
         UIAppFonts: [SpaceGrotesk.ttf, Inter.ttf]
         NSAlarmKitUsageDescription: "Alba usa le sveglie di sistema per suonare all'orario scelto, anche con il telefono bloccato o in silenzioso."
         NSAppleMusicUsageDescription: "Alba mette in pausa Apple Music quando suona la sveglia e la fa ripartire quando la spegni."
+        NSLocationWhenInUseUsageDescription: "Alba usa la posizione solo per salvare la casa e, quando spegni la sveglia senza tag, per sapere se sei fuori casa."
         UIBackgroundModes: [audio] # guardiano: chiave di Info.plist, nessuna capability a pagamento (va bene col Personal Team)
     settings:
       base:

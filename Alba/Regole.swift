@@ -6,15 +6,19 @@ import Foundation
 enum Costanti {
     static let gradiniProgressiva = 15                   // progressiva = 15 × passoProgressivaSec (15 min)
     static let dbInizialeProgressiva = -60.0             // partenza della progressiva continua (test P1: -30 dB era troppo forte)
+    static let dbFineLenta = -40.0                       // la parte lenta arriva qui (prima era il livello del minuto 5: svegliava già)
+    static let quotaLenta = 2.0 / 3                      // parte lenta: i primi 10 dei 15 minuti
     static let ritardoCatena = 300                       // la catena AlarmKit di sicurezza parte a T + 5 min
     static let ritardoCatenaTest = 60                    // mattine di test: T + 1 min
     static let tolleranzaStopTag: TimeInterval = 60      // Stop seguito dal tag entro 60 s: nessuna penalità
     static let finestraPrima: TimeInterval = 2 * 3600    // blocco modifiche e spegnimento anticipato
     static let sogliaVolume: TimeInterval = 120          // sveglie "in corso" più vecchie di così = tasti volume
     static let margineFine: TimeInterval = 60            // dopo l'ultima sveglia della catena
-    static let creditiMax = 2
+    static let creditiMax = 1
     static let creditiIniziali = 1
     static let ricaricaOgni: TimeInterval = 7 * 86400
+    static let raggioCasa = 150.0                        // metri
+    static let attesaCasa: TimeInterval = 12 * 3600      // una nuova posizione di casa vale dopo 12 ore
     static let tolleranzaOrologio: TimeInterval = 300    // differenze minori non contano come "orologio indietro"
     static let mattineProgrammate = 2
     static let giorniOrizzonte = 8
@@ -99,12 +103,18 @@ enum Regole {
         return livelli
     }
 
-    /// Volume della progressiva continua in dB: da dbIniziale all'inizio a 0 dB all'orario, lineare in dB
-    /// (come lo percepisce l'orecchio). Senza progressiva (inizio = orario) subito 0 dB.
+    /// Volume della progressiva continua in dB (scala che segue l'orecchio). Su 15 minuti:
+    /// - minuti 0–10: molto piano, da -60 a -40 dB (2 dB al minuto);
+    /// - minuti 10–15: sempre più forte, da -40 a 0 dB. Parte con la stessa pendenza (niente scalino) e accelera.
+    /// Senza progressiva (inizio = orario) subito 0 dB.
     static func dbProgressiva(ora: Date, inizio: Date, orario: Date) -> Double {
         let durata = orario.timeIntervalSince(inizio)
         let p = durata <= 0 ? 1 : min(1, max(0, ora.timeIntervalSince(inizio) / durata))
-        return Costanti.dbInizialeProgressiva * (1 - p)
+        let da = Costanti.dbInizialeProgressiva, lenta = Costanti.dbFineLenta, quota = Costanti.quotaLenta
+        if p <= quota { return da + (lenta - da) * p / quota }
+        let q = (p - quota) / (1 - quota)
+        let pendenza = (lenta - da) / quota * (1 - quota) // stessa velocità della parte lenta, in dB per q
+        return lenta + pendenza * q + (-lenta - pendenza) * q * q
     }
 
     // MARK: - Quali mattine programmare
@@ -312,6 +322,34 @@ enum Regole {
 
     static func prossimaRicarica(_ imp: Impostazioni) -> Date? {
         imp.creditiEmergenza >= Costanti.creditiMax ? nil : imp.ultimaRicarica.addingTimeInterval(Costanti.ricaricaOgni)
+    }
+
+    // MARK: - Posizione di casa (PROGETTO §6.7)
+
+    /// La casa che vale adesso: l'ultima impostata se sono passate 12 ore, altrimenti quella di prima.
+    static func casaInVigore(_ imp: Impostazioni, ora: Date) -> Casa? {
+        if let c = imp.casa, c.dal <= ora { return c }
+        return imp.casaPrecedente
+    }
+
+    /// Nuova posizione di casa: vale tra 12 ore (così non la si sposta la sera per spegnere gratis la mattina dopo).
+    static func impostaCasa(_ imp: inout Impostazioni, latitudine: Double, longitudine: Double, ora: Date) {
+        imp.casaPrecedente = casaInVigore(imp, ora: ora)
+        imp.casa = Casa(latitudine: latitudine, longitudine: longitudine, dal: ora.addingTimeInterval(Costanti.attesaCasa))
+    }
+
+    /// Distanza in metri tra due punti (formula dell'emisenoverso).
+    static func distanza(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
+        let g = Double.pi / 180
+        let a = pow(sin((lat2 - lat1) * g / 2), 2) + cos(lat1 * g) * cos(lat2 * g) * pow(sin((lon2 - lon1) * g / 2), 2)
+        return 2 * 6_371_000 * asin(min(1, sqrt(a)))
+    }
+
+    /// Fuori casa solo se è certo: anche togliendo l'incertezza della posizione si è oltre i 150 m.
+    /// Senza casa o con una posizione non valida valgono le regole di casa.
+    static func fuoriCasa(latitudine: Double, longitudine: Double, accuratezza: Double, casa: Casa?) -> Bool {
+        guard let casa, accuratezza >= 0 else { return false }
+        return distanza(latitudine, longitudine, casa.latitudine, casa.longitudine) - accuratezza > Costanti.raggioCasa
     }
 
     // MARK: - Codice segreto, nomi, frase

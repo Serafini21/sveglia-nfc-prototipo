@@ -43,14 +43,14 @@ Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su 
 - **`AlarmEngine`**: l'**unico** punto che parla con `AlarmManager`.
   - Pianifica le "mattine" e salva la mappa *UUID sveglia AlarmKit → (mattina, fase, indice, orario, suono)*.
   - Offre `fermaTutteInCorso()`, `cancellaMattina()`, `cancellaTutto()` e `riallinea()`.
-  - `riallinea()` confronta le sveglie attese con `AlarmManager.alarms` e corregge le differenze. Va eseguito all'avvio, a ogni intent, a ogni evento di geofence e su `significantTimeChangeNotification`.
+  - `riallinea()` confronta le sveglie attese con `AlarmManager.alarms` e corregge le differenze. Va eseguito all'avvio, a ogni intent e su `significantTimeChangeNotification`.
   - Mantiene programmate **almeno le prossime 2 mattine**.
 - **`Regole`**: logica pura e testabile. Valutazione della mattina, punteggio, streak, blocco delle modifiche, crediti Emergency, rilevamento dei trucchi.
 - **Intents**:
   - `SpegniConTagIntent`, con parametri *nome tag* e *codice segreto*;
   - `StopSenzaTagIntent`, cioè lo `stopIntent`;
   - `EmergenzaIntent`, il pulsante secondario della sveglia che apre l'app sulla schermata Emergency.
-- **`Geofence`**: `CLMonitor` con una `CircularGeographicCondition` per la posizione di casa.
+- **`Posizione`**: posizione letta solo con l'app aperta (permesso «Mentre usi l'app») per salvare la casa e, nell'Emergency Stop, per sapere se sei fuori casa. Niente geofence né posizione in background (scelta del 23 novembre 2026).
 - **`Scadenza`**: legge `ExpirationDate` da `embedded.mobileprovision` e programma le notifiche locali di promemoria.
 - **`Guardiano`**: dopo «Vado a letto» tiene l'app viva in background fino alla sveglia e la suona dall'app (§5). È guidato dalle mattine dello Store e da un timer di 1 s; «Vado a letto» resta salvato, quindi alla riapertura dell'app riparte da solo. Se l'app è stata chiusa o sospesa lo segnala alla riapertura, e una notifica "a uomo morto" avvisa entro 20 minuti. `PromemoriaLetto`: una notifica **9 ore prima** di ogni sveglia ricorda di premere «Vado a letto» (non arriva se è già stato premuto).
 - **Modalità sviluppatore nascosta** (5 tocchi sul titolo della Home): catena breve, simula tag, log completo con condivisione, pulsanti di test.
@@ -60,7 +60,7 @@ Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su 
 Ogni occorrenza di una sveglia è una **mattina** (schema deciso col Laboratorio, `prototipo/PORTING_ALBA.md`):
 
 1. **Sera**: 9 ore prima della sveglia arriva il promemoria. Con il pulsante **«Vado a letto»** (nella scheda della prossima sveglia; lo premono da sole anche "Vado a dormire ora" e la mattina di test) il **guardiano** tiene Alba viva in background fino alla sveglia, con la suoneria in loop a volume zero. Solo di notte, per non consumare batteria di giorno. «Vado a letto» finisce quando si chiude la sveglia (tag, anticipo, Emergency o fallita).
-2. **Progressiva** (solo se l'interruttore è attivo): da T−15 min **l'app** suona la suoneria scelta partendo da **−60 dB** e sale in modo continuo fino a 0 dB all'orario T. Senza progressiva suona subito al massimo all'orario T.
+2. **Progressiva** (solo se l'interruttore è attivo): da T−15 min **l'app** suona il **suono della progressiva** (uno per tutte le sveglie, scelto in Home sotto l'interruttore). Per **10 minuti sale piano da −60 a −40 dB** (2 dB al minuto), poi negli **ultimi 5 minuti sempre più forte fino a 0 dB** all'orario T, quando passa alla suoneria della sveglia. Con la salita lineare in 15 minuti (−40 dB già al minuto 5) l'utente si svegliava troppo presto. Senza progressiva suona subito al massimo all'orario T.
 3. Quando l'app inizia a suonare porta il volume di sistema al 100%, rialza subito il volume se premi i tasti volume e mette in pausa Apple Music, che riparte dopo il tag.
 4. **Catena AlarmKit di sicurezza**, programmata la sera insieme alla mattina: da **T+5 min** una sveglia ogni **30 s** per **30 min**, tutte con la **sirena di punizione** ("PUNIZIONE – usa il tag!"). Non compare nell'interfaccia, se non come "Sirena alle …".
 5. Passati i 30 minuti di sirena senza tag né Emergency, la mattina è **fallita**.
@@ -103,13 +103,13 @@ Ogni occorrenza di una sveglia è una **mattina** (schema deciso col Laboratorio
 
 ### 6.6 Emergency Stop
 - Spegne senza tag. Si usa **tenendo premuto un pulsante per 10 secondi** e **scrivendo la frase** "Sono sveglio e mi alzo".
-- **Crediti:** al massimo **2**. Alla prima installazione ne hai **1**. Se ne ricarica **1 ogni 7 giorni**.
+- **Crediti:** al massimo **1** (prima erano 2). Alla prima installazione ne hai **1**. Dopo averlo usato si ricarica in **7 giorni**.
 - Usarlo **azzera lo streak**.
 - **Accesso:** dall'app (schermata "Sveglia in corso") oppure dal **pulsante secondario "Emergenza"** sulla sveglia (`secondaryIntent`), che apre l'app direttamente su quella schermata. Il pulsante va verificato con un test.
 - **Protezione contro il cambio di data**: si salva l'ultima data vista. Se l'orologio torna indietro, la ricarica non avviene e l'evento viene registrato.
 
 ### 6.7 Posizione di casa
-- Si registra **una sola posizione**, con un raggio di **150 m**. Serve il permesso di posizione "Sempre", chiesto in due passi.
+- Si registra **una sola posizione** (Impostazioni › Posizione di casa, dalla posizione attuale), con un raggio di **150 m**. Basta il permesso «Mentre usi l'app»: la posizione si legge solo quando apri l'Emergency Stop. Si è fuori casa solo se è certo, cioè oltre 150 m anche togliendo l'incertezza del GPS.
 - **Ogni modifica della posizione entra in vigore dopo 12 ore.**
 - **A casa**: si applicano le regole normali.
 - **Fuori casa**: la sveglia e la catena suonano normalmente. Si spegne con la **procedura Emergency** (10 s + frase), **senza consumare crediti**. Lo streak resta in pausa e nello storico la mattina risulta "fuori casa".
@@ -192,4 +192,4 @@ Il mockup approvato è sul canvas di design. Le schermate esportate verranno for
 
 1. **Fase 1 – Il cuore**: Store, EventLog, AlarmEngine, mattine con catena e sirena, tag con codice segreto, Stop/tag/tolleranza, blocco delle modifiche, Emergency base con crediti, rilevamento dei trucchi, scadenza con promemoria, storico base. UI essenziale ma già nei colori Alba. **Più i test mancanti** (notte vera, Full immersion, scadenza, più di 61 sveglie, pulsante secondario, mini-test della progressiva).
 2. **Fase 2 – Esperienza completa**: tutta la grafica del mockup, "Vado a dormire ora", sveglia progressiva, suonerie vere, statistiche, streak, punteggio, routine, schermata di risveglio.
-3. **Fase 3 – Contorno**: posizione di casa (geofence), modalità senza tag, backup, rifiniture.
+3. **Fase 3 – Contorno**: posizione di casa (fatta nella build 11), modalità senza tag, backup, rifiniture.

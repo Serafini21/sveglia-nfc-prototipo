@@ -31,6 +31,7 @@ final class Guardiano {
         didSet { UserDefaults.standard.set(vadoALettoIl, forKey: PromemoriaLetto.chiave) }
     }
     private var mattine: [Mattina] = []
+    private var fileProgressiva = Suoneria.dolce.file
     private var suona: UUID?
     private var player: AVAudioPlayer?
     private var timer: Timer?
@@ -72,8 +73,9 @@ final class Guardiano {
     }
 
     /// Chiamato da StatoApp a ogni salvataggio dei dati (solo con l'interfaccia caricata).
-    func aggiorna(_ nuove: [Mattina]) {
-        mattine = nuove
+    func aggiorna(_ dati: DatiAlba) {
+        mattine = dati.mattine
+        fileProgressiva = dati.impostazioni.suoneriaProgressiva.file
         if timer == nil {
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 MainActor.assumeIsolated { Guardiano.shared.controlla() }
@@ -101,10 +103,17 @@ final class Guardiano {
         let ora = Date()
         if attivo { battito(ora) }
 
-        // 1. Il suono si ferma quando la mattina non è più in corso (tag, Emergency, fine della catena)
+        // 1. Il suono si ferma quando la mattina non è più in corso (tag, Emergency, fine della catena);
+        //    all'orario passa dal suono della progressiva alla suoneria della sveglia
         if let id = suona {
             let m = mattine.first { $0.id == id }
-            if !(m?.inCorso(ora) ?? false) { fermaSuono(m) }
+            if let m, m.inCorso(ora) {
+                if player?.url?.lastPathComponent != suono(m, ora), preparaAudio(suono(m, ora)) {
+                    EventLog.scrivi("GUARDIANO: ora suona \(suono(m, ora))")
+                }
+            } else {
+                fermaSuono(m)
+            }
         }
         let aperte = mattine.filter { !$0.conclusa && $0.fine > ora }.sorted { $0.inizio < $1.inizio }
 
@@ -122,7 +131,7 @@ final class Guardiano {
         // 4. Guardiano acceso da «Vado a letto», con la suoneria della prossima già in loop
         if suona == nil {
             if vadoALettoIl != nil, let prossima = aperte.first {
-                if !attivo || player?.url?.lastPathComponent != prossima.suoneria { avvia(prossima, ora) }
+                if !attivo || player?.url?.lastPathComponent != suono(prossima, ora) { avvia(prossima, ora) }
             } else if attivo {
                 spegni()
             }
@@ -136,7 +145,7 @@ final class Guardiano {
 
     private func avvia(_ prossima: Mattina, _ ora: Date) {
         let riparte = player == nil // altrimenti è solo un cambio di suoneria
-        guard preparaAudio(prossima.suoneria), riparte else { return }
+        guard preparaAudio(suono(prossima, ora)), riparte else { return }
         attivo = true
         ultimoBattito = ora
         ultimoLogVivo = .distantPast
@@ -203,7 +212,8 @@ final class Guardiano {
         }
         do {
             let s = AVAudioSession.sharedInstance()
-            try s.setCategory(.playback, options: [.mixWithOthers])
+            // mentre suona resta duckOthers (vedi zittisciAltreApp), anche al cambio di suono all'orario
+            try s.setCategory(.playback, options: suona == nil ? [.mixWithOthers] : [.mixWithOthers, .duckOthers])
             try s.setActive(true)
             let p = try AVAudioPlayer(contentsOf: url)
             p.numberOfLoops = -1
@@ -254,7 +264,7 @@ final class Guardiano {
     // MARK: - Sveglia
 
     private func inizia(_ m: Mattina, _ ora: Date) {
-        guard preparaAudio(m.suoneria) else { return } // riprova al prossimo secondo
+        guard preparaAudio(suono(m, ora)) else { return } // riprova al prossimo secondo
         if !attivo { ultimoBattito = ora } // app aperta a mattina iniziata: nessun buco da segnalare
         attivo = true
         suona = m.id
@@ -279,6 +289,11 @@ final class Guardiano {
             appleMusicDaRiprendere = true
             EventLog.scrivi("GUARDIANO: Apple Music in pausa (permesso: \(MPMediaLibrary.authorizationStatus() == .authorized ? "sì" : "no"))")
         }
+    }
+
+    /// Prima dell'orario, con la progressiva, suona il suono della progressiva; poi la suoneria della sveglia.
+    private func suono(_ m: Mattina, _ ora: Date) -> String {
+        m.parametri.progressiva && ora < m.orario ? fileProgressiva : m.suoneria
     }
 
     private func aggiornaVolume(_ ora: Date) {

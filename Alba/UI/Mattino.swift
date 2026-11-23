@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 
 /// Mostrata quando apri l'app durante una mattina.
@@ -112,6 +113,8 @@ struct EmergenzaView: View {
     @EnvironmentObject var stato: StatoApp
     @State private var frase = ""
     @State private var invio = false
+    @State private var posizione: CLLocation?
+    @State private var posizioneNegata = false
 
     private var obiettivo: Mattina? {
         let ora = Date()
@@ -119,16 +122,30 @@ struct EmergenzaView: View {
             ?? stato.dati.mattine.filter { $0.nellaFinestraPrima(ora) }.min { $0.inizio < $1.inizio }
     }
     private var crediti: Int { stato.dati.impostazioni.creditiEmergenza }
-    private var pronta: Bool { obiettivo != nil && crediti > 0 && Regole.fraseValida(frase) && !invio }
+    private var casa: Casa? { Regole.casaInVigore(stato.dati.impostazioni, ora: Date()) }
+    /// Solo se è certo (oltre 150 m anche tenendo conto dell'incertezza): altrimenti regole di casa.
+    private var fuoriCasa: Bool {
+        guard let p = posizione else { return false }
+        return Regole.fuoriCasa(latitudine: p.coordinate.latitude, longitudine: p.coordinate.longitude,
+                                accuratezza: p.horizontalAccuracy, casa: casa)
+    }
+    private var pronta: Bool { obiettivo != nil && (crediti > 0 || fuoriCasa) && Regole.fraseValida(frase) && !invio }
 
     private var descrizione: String {
-        var t = "Spegne la sveglia senza tag. Ne hai \(crediti) su \(Costanti.creditiMax)"
+        if fuoriCasa { return "Sei fuori casa: spegni senza tag e senza usare il credito. Lo streak resta in pausa." }
+        var t = crediti > 0 ? "Spegne la sveglia senza tag. Puoi usarlo una volta" : "Emergency Stop già usato"
         if let r = Regole.prossimaRicarica(stato.dati.impostazioni) {
             let giorni = max(1, Int((r.timeIntervalSinceNow / 86400).rounded(.up)))
-            t += ", il prossimo si ricarica tra \(giorni) \(giorni == 1 ? "giorno" : "giorni")"
+            t += ": si ricarica tra \(giorni) \(giorni == 1 ? "giorno" : "giorni")"
         }
         let streak = Regole.streak(stato.dati.mattine)
         return t + ". Usarlo azzera lo streak" + (streak > 0 ? " di \(streak) giorni." : ".")
+    }
+
+    private var testoPosizione: String {
+        if fuoriCasa { return "Fuori casa" }
+        if posizioneNegata { return "Posizione non disponibile: valgono le regole di casa" }
+        return posizione == nil ? "Controllo se sei a casa…" : "Sei a casa"
     }
 
     var body: some View {
@@ -152,6 +169,11 @@ struct EmergenzaView: View {
                     }
                     .accessibilityElement()
                     .accessibilityLabel("Emergency Stop disponibili: \(crediti) su \(Costanti.creditiMax)")
+
+                    if casa != nil {
+                        Label(testoPosizione, systemImage: fuoriCasa ? "location.fill" : "house")
+                            .font(.inter(14)).foregroundStyle(fuoriCasa ? Tema.successo : Tema.mattinoTesto2)
+                    }
 
                     if let m = obiettivo {
                         Text("Ferma «\(m.nome)», \(Formati.quando(m.orario)).").font(.inter(14)).foregroundStyle(Tema.mattinoTesto)
@@ -185,12 +207,25 @@ struct EmergenzaView: View {
                 .padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 28)
             }
         }
+        .task {
+            // la posizione serve solo se la casa è impostata
+            guard casa != nil else { return }
+            await Posizione.segui { p, negata in
+                if let p { posizione = p }
+                posizioneNegata = negata
+            }
+        }
     }
 
     private func conferma() {
         invio = true
+        let fuori = fuoriCasa
+        if fuori, let p = posizione, let c = casa {
+            let metri = Regole.distanza(p.coordinate.latitude, p.coordinate.longitude, c.latitudine, c.longitudine)
+            EventLog.scrivi("Emergency: a \(Int(metri)) m da casa (± \(Int(p.horizontalAccuracy)) m)")
+        }
         Task {
-            let r = await AlarmEngine.shared.emergenza()
+            let r = await AlarmEngine.shared.emergenza(fuoriCasa: fuori)
             invio = false
             stato.avvisa(r.messaggio)
             if r.ok { stato.chiudiSchermata() }

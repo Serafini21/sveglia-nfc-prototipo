@@ -43,7 +43,8 @@ actor AlarmEngine {
         await inCoda { await self._tag(nome, codice, simulato: simulato) }
     }
 
-    func emergenza() async -> Risposta { await inCoda { await self._emergenza() } }
+    /// fuoriCasa: la posizione (letta dall'app al momento) è certamente oltre 150 m da casa.
+    func emergenza(fuoriCasa: Bool = false) async -> Risposta { await inCoda { await self._emergenza(fuoriCasa) } }
 
     func salva(_ s: Sveglia) async -> Risposta { await inCoda { await self._salva(s) } }
 
@@ -346,11 +347,11 @@ actor AlarmEngine {
         return risposta
     }
 
-    private func _emergenza() async -> Risposta {
+    private func _emergenza(_ fuoriCasa: Bool) async -> Risposta {
         let ora = Date()
         var d = await Store.shared.leggi()
         var imp = Regole.ricarica(d.impostazioni, ora: ora).impostazioni
-        guard imp.creditiEmergenza > 0 else {
+        guard fuoriCasa || imp.creditiEmergenza > 0 else {
             EventLog.scrivi("EMERGENCY rifiutato: nessun credito")
             return Risposta(ok: false, messaggio: "Nessun credito Emergency: usa il tag.")
         }
@@ -362,9 +363,10 @@ actor AlarmEngine {
         }
         let fermate = fermaTutteInCorso()
         togli(Set(d.mattine[i].sveglie.map(\.id)), sveglieKit())
-        d.mattine[i].eventi.append(EventoMattina(data: ora, tipo: .emergenza))
-        Regole.chiudi(&d.mattine[i], esito: .emergenza, ora: ora)
-        imp.creditiEmergenza -= 1
+        d.mattine[i].eventi.append(EventoMattina(data: ora, tipo: .emergenza, nota: fuoriCasa ? "fuori casa" : nil))
+        // fuori casa: nessun credito, streak in pausa (PROGETTO §6.7)
+        Regole.chiudi(&d.mattine[i], esito: fuoriCasa ? .fuoriCasa : .emergenza, ora: ora)
+        if !fuoriCasa { imp.creditiEmergenza -= 1 }
         let mattine = d.mattine
         let crediti = imp.creditiEmergenza
         let ricarica = imp.ultimaRicarica
@@ -375,8 +377,9 @@ actor AlarmEngine {
             dati.impostazioni.ultimaRicarica = ricarica
             dati.impostazioni.ultimaDataVista = vista
         }
-        EventLog.scrivi("EMERGENCY STOP – mattina \(descr(d.mattine[i])) chiusa, fermate \(fermate) sveglie, crediti rimasti \(crediti)/\(Costanti.creditiMax)")
+        EventLog.scrivi("\(fuoriCasa ? "EMERGENCY FUORI CASA (nessun credito)" : "EMERGENCY STOP") – mattina \(descr(d.mattine[i])) chiusa, fermate \(fermate) sveglie, crediti rimasti \(crediti)/\(Costanti.creditiMax)")
         await _riallinea("emergenza")
+        if fuoriCasa { return Risposta(ok: true, messaggio: "Sveglia spenta: sei fuori casa, nessun credito usato. Lo streak resta in pausa.") }
         return Risposta(ok: true, messaggio: "Sveglia spenta con l'Emergency Stop. Crediti rimasti: \(crediti)/\(Costanti.creditiMax). Lo streak riparte da zero.")
     }
 

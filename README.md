@@ -40,11 +40,12 @@ Il tag funziona solo a **telefono sbloccato**, e mentre la sveglia suona Face ID
 ## Come funziona una mattina
 
 - **«Vado a letto»** (nella scheda della prossima sveglia): accende il **guardiano**, che tiene Alba viva in background fino alla sveglia (audio a volume zero). 9 ore prima di ogni sveglia arriva un promemoria per premerlo. **Non chiudere Alba dal multitasking**: se si chiude arriva una notifica.
-- **La sveglia la suona l'app**, con la suoneria scelta. Con la **progressiva** (interruttore nella Home) parte 15 minuti prima a −60 dB e sale fino al massimo all'orario. I tasti volume non funzionano e Apple Music va in pausa.
+- **La sveglia la suona l'app**, con la suoneria scelta. Con la **progressiva** (interruttore nella Home, con il suo suono) parte 15 minuti prima a −60 dB: per 10 minuti sale piano fino a −40 dB, poi sempre più forte fino al massimo all'orario, quando passa alla suoneria. I tasti volume non funzionano e Apple Music va in pausa.
+- **Posizione di casa** (Impostazioni): fuori casa, oltre 150 m, l'Emergency Stop non usa il credito e lo streak resta in pausa. Una nuova posizione vale dopo 12 ore.
 - **Sirena di sicurezza**: dall'orario + 5 minuti, una sveglia AlarmKit ogni 30 s per 30 minuti. Suona anche se Alba è stata chiusa o se non hai premuto «Vado a letto».
 - **Stop** sulla sirena ferma solo la sirena, che risuona 30 s dopo: serve il tag. I **tasti volume** sulla sirena la zittiscono ma la mattina risulta «fallita – volume».
 - **Tag** nelle 2 ore prima: la mattina viene annullata in anticipo e conta come riuscita. Nelle stesse 2 ore la sveglia non si può modificare senza tag.
-- **Emergency Stop**: dall'app o dal pulsante **Emergenza** sulla sveglia. Si scrive «Sono sveglio e mi alzo» e si tiene premuto 10 s. Ha 2 crediti al massimo (1 all'inizio, +1 ogni 7 giorni) e azzera lo streak.
+- **Emergency Stop**: dall'app o dal pulsante **Emergenza** sulla sveglia. Si scrive «Sono sveglio e mi alzo» e si tiene premuto 10 s. Ha 1 credito al massimo, che si ricarica 7 giorni dopo averlo usato, e azzera lo streak. Fuori casa non consuma il credito.
 - Alba tiene programmate le **prossime 2 mattine**. Se iOS rifiuta così tante sveglie, la seconda viene ridotta e il log lo segnala.
 
 ## Modalità sviluppatore

@@ -27,6 +27,21 @@ struct Impostazioni: Codable, Equatable {
     var ultimaDataVista = Date()
     var sviluppatore = false
     var test = ParametriTest()
+    // Campi aggiunti dopo la build 10: opzionali, i file vecchi non li hanno.
+    /// Suono dei 15 minuti di progressiva (rawValue di Suoneria), uguale per tutte le sveglie. nil = «Alba».
+    var suonoProgressiva: String?
+    /// Posizione di casa (PROGETTO §6.7). Ogni modifica vale dopo 12 ore: fino ad allora vale la precedente.
+    var casa: Casa?
+    var casaPrecedente: Casa?
+
+    var suoneriaProgressiva: Suoneria { suonoProgressiva.flatMap(Suoneria.init(rawValue:)) ?? .dolce }
+}
+
+struct Casa: Codable, Equatable {
+    var latitudine: Double
+    var longitudine: Double
+    /// Da quando vale (12 ore dopo averla impostata).
+    var dal: Date
 }
 
 /// Parametri della "catena breve" della modalità sviluppatore.

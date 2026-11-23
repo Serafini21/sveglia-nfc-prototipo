@@ -169,6 +169,7 @@ struct RigaSveglia: View {
 
 struct ProssimaScheda: View {
     @EnvironmentObject var stato: StatoApp
+    @State private var sceltaSuono = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -237,13 +238,44 @@ struct ProssimaScheda: View {
         }
         .scheda(raggio: 22, margine: 20)
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Tema.bordo, lineWidth: 1))
+        .sheet(isPresented: $sceltaSuono) {
+            NavigationStack {
+                SceltaSuoneria(selezione: suonoProgressiva, titolo: "Suono progressiva")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fine") { sceltaSuono = false } } }
+            }
+        }
     }
 
     private var progressiva: some View {
-        InterruttoreProgressiva(sottotitolo: nil)
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(stato.dati.impostazioni.progressiva ? Tema.ambraTenue : Tema.notte,
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        VStack(alignment: .leading, spacing: 6) {
+            InterruttoreProgressiva(sottotitolo: nil)
+            if stato.dati.impostazioni.progressiva {
+                Button { sceltaSuono = true } label: {
+                    HStack {
+                        Text("Suono").font(.inter(14)).foregroundStyle(Tema.testo2)
+                        Spacer()
+                        Text(stato.dati.impostazioni.suoneriaProgressiva.nome).font(.inter(14, .semibold)).foregroundStyle(Tema.testo)
+                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Tema.testo3)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain) // in una riga di List: solo questo bottone reagisce al tocco
+                .accessibilityLabel("Suono della progressiva: \(stato.dati.impostazioni.suoneriaProgressiva.nome)")
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(stato.dati.impostazioni.progressiva ? Tema.ambraTenue : Tema.notte,
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// Un solo suono per la progressiva di tutte le sveglie; all'orario la sveglia passa alla sua suoneria.
+    private var suonoProgressiva: Binding<String> {
+        Binding(get: { stato.dati.impostazioni.suoneriaProgressiva.rawValue }, set: { valore in
+            stato.dati.impostazioni.suonoProgressiva = valore // riscontro immediato; lo Store conferma subito dopo
+            Task { await Store.shared.modifica { $0.impostazioni.suonoProgressiva = valore } }
+            EventLog.scrivi("Suono della progressiva: \(valore)")
+        })
     }
 }
 

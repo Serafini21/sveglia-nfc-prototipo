@@ -50,8 +50,15 @@ do {
 // MARK: Progressiva continua dell'app
 do {
     let inizio = T.addingTimeInterval(-900)
-    verifica(Regole.dbProgressiva(ora: inizio, inizio: inizio, orario: T) == -60, "parte da -60 dB")
-    verifica(Regole.dbProgressiva(ora: T.addingTimeInterval(-450), inizio: inizio, orario: T) == -30, "a metà -30 dB")
+    func db(_ minuto: Double) -> Double { Regole.dbProgressiva(ora: inizio.addingTimeInterval(minuto * 60), inizio: inizio, orario: T) }
+    func circa(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 0.01 }
+    verifica(db(0) == -60, "parte da -60 dB")
+    verifica(circa(db(5), -50) && circa(db(10), -40), "parte lenta: -50 dB al minuto 5, -40 dB al minuto 10")
+    verifica(circa(db(12.5), -27.5), "poi sempre più forte: -27,5 dB al minuto 12,5")
+    verifica(abs((db(10.1) - db(10)) - (db(10) - db(9.9))) < 0.05, "al minuto 10 nessuno scalino di velocità")
+    let passi = (0...150).map { db(Double($0) / 10) }
+    verifica(zip(passi, passi.dropFirst()).allSatisfy { $0 <= $1 }, "non scende mai")
+    verifica(db(15) - db(14) > db(11) - db(10), "l'ultimo minuto sale più del minuto 10")
     verifica(Regole.dbProgressiva(ora: T, inizio: inizio, orario: T) == 0, "all'orario 0 dB")
     verifica(Regole.dbProgressiva(ora: T.addingTimeInterval(600), inizio: inizio, orario: T) == 0, "dopo l'orario resta a 0 dB")
     verifica(Regole.dbProgressiva(ora: inizio.addingTimeInterval(-5), inizio: inizio, orario: T) == -60, "prima dell'inizio -60 dB")
@@ -151,21 +158,24 @@ do {
 // MARK: Crediti Emergency
 do {
     var imp = Impostazioni()
-    imp.creditiEmergenza = 1
+    imp.creditiEmergenza = 0
     imp.ultimaRicarica = data(1, 12, 0)
     imp.ultimaDataVista = data(1, 12, 0)
-    verifica(Regole.ricarica(imp, ora: data(7, 12, 0)).impostazioni.creditiEmergenza == 1, "6 giorni: nessuna ricarica")
+    verifica(Regole.ricarica(imp, ora: data(7, 12, 0)).impostazioni.creditiEmergenza == 0, "6 giorni: nessuna ricarica")
     let r = Regole.ricarica(imp, ora: data(8, 12, 0))
-    verifica(r.impostazioni.creditiEmergenza == 2 && r.nota != nil, "7 giorni: +1")
-    verifica(Regole.ricarica(imp, ora: data(29, 12, 0)).impostazioni.creditiEmergenza == 2, "mai oltre 2")
+    verifica(r.impostazioni.creditiEmergenza == 1 && r.nota != nil, "7 giorni: +1")
+    verifica(Regole.ricarica(imp, ora: data(29, 12, 0)).impostazioni.creditiEmergenza == 1, "mai oltre 1")
     var indietro = imp
     indietro.ultimaDataVista = data(20, 12, 0)
     let ri = Regole.ricarica(indietro, ora: data(10, 12, 0))
-    verifica(ri.impostazioni.creditiEmergenza == 1 && ri.nota?.contains("OROLOGIO") == true, "orologio indietro: niente ricarica, evento registrato")
+    verifica(ri.impostazioni.creditiEmergenza == 0 && ri.nota?.contains("OROLOGIO") == true, "orologio indietro: niente ricarica, evento registrato")
     var pieno = imp
-    pieno.creditiEmergenza = 2
+    pieno.creditiEmergenza = 1
     verifica(Regole.ricarica(pieno, ora: data(20, 12, 0)).impostazioni.ultimaRicarica == data(20, 12, 0),
              "al massimo il conteggio riparte da adesso")
+    var vecchi = imp
+    vecchi.creditiEmergenza = 2 // salvati quando il massimo era 2
+    verifica(Regole.ricarica(vecchi, ora: data(2, 12, 0)).impostazioni.creditiEmergenza == 1, "chi ne aveva 2 scende a 1")
     verifica(Impostazioni().creditiEmergenza == 1, "alla prima installazione 1 credito")
 }
 
@@ -251,6 +261,27 @@ do {
     verifica(settimana.count == 7 && settimana.first?.giorno == data(13, 0, 0) && settimana.last?.giorno == data(19, 0, 0),
              "7 giorni, da 6 giorni fa a oggi")
     verifica(settimana.map(\.punteggio) == [90, nil, nil, nil, 70, nil, 0], "ultima mattina del giorno, test esclusi, fuori casa vuoto")
+}
+
+// MARK: Posizione di casa
+do {
+    let d = Regole.distanza(45, 9, 45.001, 9)
+    verifica(abs(d - 111.2) < 1, "0,001° di latitudine ≈ 111 m (\(d))")
+    var imp = Impostazioni()
+    Regole.impostaCasa(&imp, latitudine: 45, longitudine: 9, ora: data(19, 20, 0))
+    verifica(Regole.casaInVigore(imp, ora: data(20, 7, 59)) == nil, "la prima casa non vale prima di 12 ore")
+    let prima = Regole.casaInVigore(imp, ora: data(20, 8, 0))
+    verifica(prima?.latitudine == 45, "dopo 12 ore vale")
+    Regole.impostaCasa(&imp, latitudine: 46, longitudine: 9, ora: data(21, 22, 0))
+    verifica(Regole.casaInVigore(imp, ora: data(22, 7, 0)) == prima, "spostata la sera: la mattina dopo vale ancora la vecchia")
+    verifica(Regole.casaInVigore(imp, ora: data(22, 10, 0))?.latitudine == 46, "poi vale la nuova")
+
+    let casa = Casa(latitudine: 45, longitudine: 9, dal: data(1, 0, 0))
+    verifica(Regole.fuoriCasa(latitudine: 45.002, longitudine: 9, accuratezza: 20, casa: casa), "222 m ± 20: fuori casa")
+    verifica(!Regole.fuoriCasa(latitudine: 45.002, longitudine: 9, accuratezza: 100, casa: casa), "222 m ± 100: non è certo, regole di casa")
+    verifica(!Regole.fuoriCasa(latitudine: 45.001, longitudine: 9, accuratezza: 5, casa: casa), "111 m: a casa")
+    verifica(!Regole.fuoriCasa(latitudine: 46, longitudine: 9, accuratezza: -1, casa: casa), "posizione non valida: regole di casa")
+    verifica(!Regole.fuoriCasa(latitudine: 46, longitudine: 9, accuratezza: 10, casa: nil), "casa non impostata: regole di casa")
 }
 
 // MARK: Codice, nomi, frase, profilo
