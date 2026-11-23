@@ -2,7 +2,7 @@
 
 Questo documento riassume cosa è stato verificato sul telefono (iPhone 14 Pro, iOS 26.6) con il **Laboratorio** del prototipo il 20 novembre 2026, e cosa va portato in Alba.
 
-Il codice di riferimento, già testato, è in [`prototipo/Sources/Laboratorio.swift`](Sources/Laboratorio.swift), classe `Lab`. I risultati dei singoli test sono in [`prototipo/TEST.md`](TEST.md), giri 3-6.
+Il codice di riferimento, già testato, è in [`archivio/prototipo/Sources/Laboratorio.swift`](Sources/Laboratorio.swift), classe `Lab`. I risultati dei singoli test sono in [`archivio/prototipo/TEST.md`](TEST.md), giri 3-6.
 
 ---
 

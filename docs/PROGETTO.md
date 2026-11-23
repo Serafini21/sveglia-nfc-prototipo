@@ -1,6 +1,6 @@
 # PROGETTO – App "Alba" (sveglia con tag NFC)
 
-Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su funzioni, regole e soluzioni tecniche. Le soluzioni tecniche sono state verificate con il prototipo (vedi `REPORT_PROTOTIPO.md`).
+Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su funzioni, regole e soluzioni tecniche. Le soluzioni tecniche sono state verificate con il prototipo (vedi `archivio/REPORT_PROTOTIPO.md`).
 "Alba" è un nome provvisorio.
 
 ---
@@ -34,7 +34,7 @@ Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su 
 7. Fino a 61 sveglie `.fixed` si programmano insieme in meno di un secondo e senza errori. Il limite reale non è noto (`maximumLimitReached` va gestito).
 8. Suoni: WAV PCM nel bundle principale, impostati per singola sveglia (`.named`). Un file da 3 minuti suona intero e poi va in loop. Una crescita di volume **dentro** il file non si percepisce.
 9. L'App Intent gira nel processo dell'app ed è eseguibile senza aprirla. Può essere lanciata anche **a mano**, senza tag, da Comandi Rapidi o da Siri.
-10. **Laboratorio (20 novembre 2026, dettagli in `prototipo/PORTING_ALBA.md`)**: senza audio in riproduzione iOS sospende l'app pochi secondi dopo che la lasci. Con un audio a volume zero in loop (`UIBackgroundModes = audio`, nessuna capability a pagamento) l'app resta viva a schermo bloccato e suona puntuale. Mentre suona dall'app, i tasti volume si vedono e il volume di sistema si può rialzare (`MPVolumeView`). Apple Music si mette in pausa, Spotify e YouTube no. **Mai disattivare la sessione audio prima della sveglia**: da background non si riattiva.
+10. **Laboratorio (20 novembre 2026, dettagli in `archivio/prototipo/PORTING_ALBA.md`)**: senza audio in riproduzione iOS sospende l'app pochi secondi dopo che la lasci. Con un audio a volume zero in loop (`UIBackgroundModes = audio`, nessuna capability a pagamento) l'app resta viva a schermo bloccato e suona puntuale. Mentre suona dall'app, i tasti volume si vedono e il volume di sistema si può rialzare (`MPVolumeView`). Apple Music si mette in pausa, Spotify e YouTube no. **Mai disattivare la sessione audio prima della sveglia**: da background non si riattiva.
 
 ## 4. Architettura
 
@@ -57,7 +57,7 @@ Documento di riferimento per lo sviluppo. Raccoglie tutte le decisioni prese su 
 
 ## 5. Struttura di una "mattina"
 
-Ogni occorrenza di una sveglia è una **mattina** (schema deciso col Laboratorio, `prototipo/PORTING_ALBA.md`):
+Ogni occorrenza di una sveglia è una **mattina** (schema deciso col Laboratorio, `archivio/prototipo/PORTING_ALBA.md`):
 
 1. **Sera**: 9 ore prima della sveglia arriva il promemoria. Con il pulsante **«Vado a letto»** (nella scheda della prossima sveglia; lo premono da sole anche "Vado a dormire ora" e la mattina di test) il **guardiano** tiene Alba viva in background fino alla sveglia, con la suoneria in loop a volume zero. Solo di notte, per non consumare batteria di giorno. «Vado a letto» finisce quando si chiude la sveglia (tag, anticipo, Emergency o fallita).
 2. **Progressiva** (solo se l'interruttore è attivo): da T−15 min **l'app** suona il **suono della progressiva** (uno per tutte le sveglie, scelto nella schermata «Sveglia progressiva» che si apre toccandone il titolo in Home). Per **10 minuti sale piano da −60 a −40 dB** (2 dB al minuto), poi negli **ultimi 5 minuti sempre più forte fino a 0 dB** all'orario T, quando passa alla suoneria della sveglia. Con la salita lineare in 15 minuti (−40 dB già al minuto 5) l'utente si svegliava troppo presto. Senza progressiva suona subito al massimo all'orario T.

@@ -3,7 +3,7 @@ import MediaPlayer
 import SwiftUI
 import UserNotifications
 
-/// La sveglia suonata dall'app: porting del Laboratorio (prototipo/PORTING_ALBA.md, codice testato in `Lab`).
+/// La sveglia suonata dall'app: porting del Laboratorio (archivio/prototipo/PORTING_ALBA.md, codice testato in `Lab`).
 ///
 /// Da «Vado a letto» fino alla sveglia, il guardiano suona la suoneria in loop a volume zero
 /// (UIBackgroundModes = audio): così iOS non sospende l'app. Solo la notte, per risparmiare batteria;

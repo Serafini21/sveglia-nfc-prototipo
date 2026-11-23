@@ -3,7 +3,7 @@ name: Build prototipo
 on:
   push:
     branches: [main]
-    paths: ['prototipo/**', '!prototipo/**.md', '.github/workflows/prototipo.yml']
+    paths: ['archivio/prototipo/**', '!archivio/prototipo/**.md', '.github/workflows/prototipo.yml']
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: prototipo
+        working-directory: archivio/prototipo
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +24,7 @@ jobs:
 
       - name: Genera suoni e progetto
         run: |
-          python3 ../scripts/genera_suoni.py Sounds
+          python3 ../../scripts/genera_suoni.py Sounds
           brew install xcodegen
           xcodegen generate
 
@@ -47,4 +47,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: SvegliaNFC-ipa
-          path: prototipo/SvegliaNFC.ipa
+          path: archivio/prototipo/SvegliaNFC.ipa

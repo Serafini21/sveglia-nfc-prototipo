@@ -2,10 +2,9 @@
 
 App per iPhone (iOS 26.1+): la sveglia si spegne solo avvicinando il telefono a un tag NFC lontano dal letto. È per uso personale, installata con un Apple ID gratuito tramite Sideloadly, senza Mac.
 
+- Cosa c'è in ogni cartella: [`LEGGIMI.md`](LEGGIMI.md)
 - Progetto completo e regole: [`docs/PROGETTO.md`](docs/PROGETTO.md)
-- Cosa abbiamo verificato con il prototipo: [`REPORT_PROTOTIPO.md`](REPORT_PROTOTIPO.md)
-- Checklist dei test: [`TEST_FASE1.md`](TEST_FASE1.md) e [`TEST_FASE2.md`](TEST_FASE2.md)
-- Il prototipo è in [`prototipo/`](prototipo/) come riferimento e non fa parte della build.
+- Lavoro finito (primo prototipo, Laboratorio, test delle fasi 1 e 2): [`archivio/`](archivio/), non fa parte della build.
 
 ## Build (GitHub Actions)
 
@@ -60,18 +59,4 @@ Tocca 5 volte il titolo «Sveglie» nella Home. Contiene:
 
 ## Struttura
 
-```
-Alba/                 codice dell'app (un solo target, nessuna estensione)
-  Modello.swift         dati salvati (JSON versionato)
-  Regole.swift          logica pura: piano della mattina, esiti, punteggio, streak, crediti, blocco
-  Store.swift           attore che legge e scrive alba.json in modo atomico
-  EventLog.swift        log con millisecondi e rotazione a 500 KB
-  AlarmEngine.swift     unico punto che usa AlarmKit: programma, riallinea, Stop, tag, Emergency
-  Intents.swift         Spegni sveglia (tag), stopIntent, pulsante Emergenza, frase per Siri
-  Scadenza.swift        scadenza da embedded.mobileprovision e promemoria
-  UI/                   schermate SwiftUI nei colori Alba
-Tests/main.swift      test delle regole (girano su GitHub Actions prima della build)
-scripts/genera_suoni.py   suoni WAV generati a ogni build
-docs/PROGETTO.md      progetto di riferimento
-prototipo/            codice del prototipo (solo riferimento)
-```
+Vedi [`LEGGIMI.md`](LEGGIMI.md): spiega ogni cartella e ogni file del codice in parole semplici.
