@@ -3,7 +3,7 @@ name: Build IPA
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', 'archivio/**', '.github/workflows/prototipo.yml']
+    paths-ignore: ['**.md', 'archivio/**', 'android/**', '.github/workflows/prototipo.yml', '.github/workflows/android.yml']
   workflow_dispatch:
 
 jobs:

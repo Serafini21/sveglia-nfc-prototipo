@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sfondo scuro anche prima che parta Compose, barre di sistema scure -->
+    <style name="Tema.Alba" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF0B1020</item>
+        <item name="android:statusBarColor">#FF0B1020</item>
+        <item name="android:navigationBarColor">#FF151B2E</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

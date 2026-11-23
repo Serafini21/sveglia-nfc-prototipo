@@ -11,6 +11,7 @@ Questa cartella è il progetto «Alba», cioè la sveglia che si spegne con il t
 | `docs/PROGETTO.md` | Tutte le regole e le scelte del progetto. |
 | `docs/PASSAGGIO_CHAT.md` | Il riassunto da dare a una chat nuova per riprendere il lavoro. |
 | `Alba.ipa` | L'app da installare con Sideloadly. Esiste solo su questo PC; la versione nuova si scarica da GitHub. |
+| `android/README.md` | La versione Android (Galaxy S23): installazione, impostazioni del telefono, differenze dall'iPhone. |
 
 ## Il codice (non serve aprirlo)
 
@@ -24,7 +25,8 @@ Queste cartelle servono a GitHub per creare l'app. Non spostarle e non rinominar
 | `Tests/` | I controlli automatici sulle regole, eseguiti prima di ogni build. |
 | `scripts/` | Programmi che creano i suoni e l'icona durante la build. |
 | `project.yml` | La «ricetta» del progetto: nome, versione di iOS, permessi. |
-| `.github/` | Le istruzioni per GitHub su come compilare l'app. |
+| `android/` | L'app Android, separata da quella iPhone: codice, test e «ricetta» Gradle. Usa gli stessi suoni (`scripts/`). |
+| `.github/` | Le istruzioni per GitHub su come compilare l'app (`build.yml` iPhone, `android.yml` Android). |
 | `.git/` e `.gitignore` | Servono a Git per tenere la cronologia. Non toccarli. |
 
 ### I file del codice, uno per uno
