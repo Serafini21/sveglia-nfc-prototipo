@@ -215,7 +215,6 @@ struct SelettoreGiorni: View {
 /// Libreria delle suonerie con anteprima al tocco.
 struct SceltaSuoneria: View {
     @Binding var selezione: String
-    var titolo = "Suoneria"
 
     var body: some View {
         List {
@@ -250,7 +249,7 @@ struct SceltaSuoneria: View {
             .listRowBackground(Tema.superficie)
         }
         .stileAlba()
-        .navigationTitle(titolo)
+        .navigationTitle("Suoneria")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .onDisappear { Anteprima.shared.ferma() }

@@ -169,14 +169,19 @@ struct RigaSveglia: View {
 
 struct ProssimaScheda: View {
     @EnvironmentObject var stato: StatoApp
-    @State private var sceltaSuono = false
+    @State private var opzioni = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            EtichettaSezione(testo: "Prossima sveglia")
             if let m = stato.prossima {
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            EtichettaSezione(testo: "Prossima sveglia")
+                            Spacer()
+                            if m.test { Pastiglia(testo: "TEST") }
+                            lucchetto(m, ora: ctx.date)
+                        }
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             // l'orario non va mai a capo: semmai va a capo il testo accanto
                             Text(Formati.ora(m.orario))
@@ -215,16 +220,6 @@ struct ProssimaScheda: View {
                             }
                             .buttonStyle(PulsanteSecondario())
                         }
-                        HStack(spacing: 8) {
-                            Label(m.bloccata(ctx.date) ? "Bloccata: serve il tag"
-                                  : "Bloccata dalle \(Formati.ora(m.inizio.addingTimeInterval(-Costanti.finestraPrima)))",
-                                  systemImage: "lock")
-                                .font(.inter(13, .medium))
-                                .foregroundStyle(m.bloccata(ctx.date) ? Tema.ambra : Tema.testoChiaro)
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(Tema.superficie2, in: Capsule())
-                            if m.test { Pastiglia(testo: "TEST") }
-                        }
                         if let r = m.ridotta {
                             Label("Ridotta: \(r)", systemImage: "exclamationmark.triangle")
                                 .font(.inter(13)).foregroundStyle(Tema.pericolo)
@@ -232,66 +227,67 @@ struct ProssimaScheda: View {
                     }
                 }
             } else {
+                EtichettaSezione(testo: "Prossima sveglia")
                 Text("Nessuna sveglia programmata").font(.inter(17, .semibold)).foregroundStyle(Tema.testo2)
                 progressiva
             }
         }
         .scheda(raggio: 22, margine: 20)
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Tema.bordo, lineWidth: 1))
-        .sheet(isPresented: $sceltaSuono) {
-            NavigationStack {
-                SceltaSuoneria(selezione: suonoProgressiva, titolo: "Suono progressiva")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fine") { sceltaSuono = false } } }
-            }
-        }
+        .sheet(isPresented: $opzioni) { ProgressivaView().environmentObject(stato) }
+    }
+
+    /// In alto a destra: da che ora la sveglia si blocca, poi «Bloccata» in ambra.
+    private func lucchetto(_ m: Mattina, ora: Date) -> some View {
+        let bloccata = m.bloccata(ora)
+        let dalle = Formati.ora(m.inizio.addingTimeInterval(-Costanti.finestraPrima))
+        return Label(bloccata ? "Bloccata" : dalle, systemImage: "lock")
+            .font(.inter(13, .medium))
+            .foregroundStyle(bloccata ? Tema.ambra : Tema.testo2)
+            .accessibilityLabel(bloccata ? "Bloccata: serve il tag" : "Bloccata dalle \(dalle)")
     }
 
     private var progressiva: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            InterruttoreProgressiva(sottotitolo: nil)
-            if stato.dati.impostazioni.progressiva {
-                Button { sceltaSuono = true } label: {
-                    HStack {
-                        Text("Suono").font(.inter(14)).foregroundStyle(Tema.testo2)
-                        Spacer()
-                        Text(stato.dati.impostazioni.suoneriaProgressiva.nome).font(.inter(14, .semibold)).foregroundStyle(Tema.testo)
-                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Tema.testo3)
-                    }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain) // in una riga di List: solo questo bottone reagisce al tocco
-                .accessibilityLabel("Suono della progressiva: \(stato.dati.impostazioni.suoneriaProgressiva.nome)")
-            }
-        }
-        .padding(.horizontal, 14).padding(.vertical, 12)
-        .background(stato.dati.impostazioni.progressiva ? Tema.ambraTenue : Tema.notte,
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    /// Un solo suono per la progressiva di tutte le sveglie; all'orario la sveglia passa alla sua suoneria.
-    private var suonoProgressiva: Binding<String> {
-        Binding(get: { stato.dati.impostazioni.suoneriaProgressiva.rawValue }, set: { valore in
-            stato.dati.impostazioni.suonoProgressiva = valore // riscontro immediato; lo Store conferma subito dopo
-            Task { await Store.shared.modifica { $0.impostazioni.suonoProgressiva = valore } }
-            EventLog.scrivi("Suono della progressiva: \(valore)")
-        })
+        InterruttoreProgressiva { opzioni = true }
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(stato.dati.impostazioni.progressiva ? Tema.ambraTenue : Tema.notte,
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
 /// Interruttore unico della progressiva: vale per tutte le sveglie e ricorda l'ultima scelta.
 struct InterruttoreProgressiva: View {
     @EnvironmentObject var stato: StatoApp
-    let sottotitolo: String?
+    var titolo = "Sveglia progressiva 15 min"
+    /// Se c'è, il titolo diventa un pulsante che apre le opzioni della progressiva.
+    var apri: (() -> Void)?
 
     var body: some View {
-        Toggle(isOn: Binding(get: { stato.dati.impostazioni.progressiva }, set: { cambia($0) })) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Sveglia progressiva 15 min").font(.inter(15, .semibold)).foregroundStyle(Tema.testo)
-                if let sottotitolo { Text(sottotitolo).font(.inter(12)).foregroundStyle(Tema.testo2) }
+        HStack(spacing: 12) {
+            if let apri {
+                Button(action: apri) {
+                    HStack(spacing: 6) {
+                        etichetta
+                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Tema.testo3)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain) // in una riga di List: solo questo bottone reagisce al tocco
+                .accessibilityHint("Apre le opzioni della progressiva")
+            } else {
+                etichetta
+                Spacer(minLength: 0)
             }
+            Toggle(titolo, isOn: Binding(get: { stato.dati.impostazioni.progressiva }, set: { cambia($0) }))
+                .labelsHidden()
+                .tint(Tema.ambra)
         }
-        .tint(Tema.ambra)
+    }
+
+    private var etichetta: some View {
+        Text(titolo).font(.inter(15, .semibold)).foregroundStyle(Tema.testo)
     }
 
     private func cambia(_ valore: Bool) {
@@ -300,6 +296,80 @@ struct InterruttoreProgressiva: View {
             await AlarmEngine.shared.impostaProgressiva(valore)
             stato.avvisa(valore ? "Sveglia progressiva attiva" : "Sveglia progressiva disattivata")
         }
+    }
+}
+
+/// Opzioni della progressiva: interruttore e suono, uno per tutte le sveglie.
+struct ProgressivaView: View {
+    @EnvironmentObject var stato: StatoApp
+    @Environment(\.dismiss) private var chiudi
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Button { chiudi() } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(PulsanteIcona())
+                    .accessibilityLabel("Indietro")
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Sveglia progressiva").font(.grotesk(28, .bold)).foregroundStyle(Tema.testo)
+                    Text("Parte 15 minuti prima dell'orario: per 10 minuti sale piano, negli ultimi 5 sempre più forte. All'orario passa alla suoneria della sveglia.")
+                        .font(.inter(15)).foregroundStyle(Tema.testo2)
+                }
+
+                InterruttoreProgressiva(titolo: "Attiva")
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 56)
+                    .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    EtichettaSezione(testo: "Suono")
+                    ForEach(Suoneria.Categoria.allCases) { categoria in
+                        let suoni = Suoneria.allCases.filter { $0.categoria == categoria }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(categoria.nome).font(.inter(12)).foregroundStyle(Tema.testo3).padding(.leading, 4)
+                            VStack(spacing: 0) {
+                                ForEach(suoni) { s in
+                                    riga(s)
+                                    if s != suoni.last { Divider().overlay(Tema.bordo) }
+                                }
+                            }
+                            .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                    }
+                    Text("Tocca un suono per ascoltarlo.").font(.inter(13)).foregroundStyle(Tema.testo2)
+                }
+                .opacity(stato.dati.impostazioni.progressiva ? 1 : 0.4)
+            }
+            .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 28)
+        }
+        .background(Tema.sfondo.ignoresSafeArea())
+        .onDisappear { Anteprima.shared.ferma() }
+    }
+
+    private func riga(_ s: Suoneria) -> some View {
+        let scelta = s == stato.dati.impostazioni.suoneriaProgressiva
+        return Button { scegli(s) } label: {
+            HStack {
+                Text(s.nome).font(.inter(16)).foregroundStyle(Tema.testo)
+                Spacer()
+                if scelta {
+                    Image(systemName: "checkmark").foregroundStyle(Tema.ambra).accessibilityLabel("Scelto")
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 48)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(scelta ? .isSelected : [])
+    }
+
+    private func scegli(_ s: Suoneria) {
+        Anteprima.shared.suona(s.file)
+        stato.dati.impostazioni.suonoProgressiva = s.rawValue // riscontro immediato; lo Store conferma subito dopo
+        Task { await Store.shared.modifica { $0.impostazioni.suonoProgressiva = s.rawValue } }
+        EventLog.scrivi("Suono della progressiva: \(s.rawValue)")
     }
 }
 

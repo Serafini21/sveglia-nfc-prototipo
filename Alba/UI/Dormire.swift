@@ -51,7 +51,7 @@ struct DormireView: View {
                 }
                 .scheda()
 
-                InterruttoreProgressiva(sottotitolo: "Come l'ultima volta")
+                InterruttoreProgressiva()
                     .padding(.horizontal, 4)
 
                 Button(salvo ? "Imposto…" : "Imposta sveglia alle \(Formati.ora(orario))") { salva() }
